@@ -2,8 +2,8 @@
 
 from distutils.core import setup
 
-description = 'FAICE is part of the Curious Containers project and enables researchers to perform and distribute' \
-              'reproducible data-driven experiments.'
+description = 'FAICE (Fair Collaboration and Experiments) is part of the Curious Containers project and enables' \
+              'researchers to perform and distribute reproducible data-driven experiments.'
 
 setup(
     name='faice',

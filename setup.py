@@ -14,7 +14,10 @@ setup(
     author_email='Christoph.Jansen@htw-berlin.de',
     url='https://github.com/curious-containers/cc-faice',
     packages=[
-        'faice'
+        'faice',
+        'faice.agent',
+        'faice.schema_list',
+        'faice.schema_export'
     ],
     entry_points={
         'console_scripts': ['faice=faice.main:main']

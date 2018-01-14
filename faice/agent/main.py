@@ -11,10 +11,6 @@ def attach_args(parser):
         'faice_file', action='store', type=str, metavar='FAICE_FILE',
         help='FAICE_FILE containing an experiment description (json/yaml) as local path or http url.'
     )
-    parser.add_argument(
-        '--no-container', action='store_true',
-        help='Do not execute jop in a container, even when specified by the experiment.'
-    )
 
 
 def main():
@@ -24,7 +20,6 @@ def main():
     return run(**args.__dict__)
 
 
-def run(faice_file, no_container):
+def run(faice_file):
     print(faice_file)
-    print(no_container)
     return 0

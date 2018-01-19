@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from cc_core.commons.schema_list import schemas
 
 
-DESCRIPTION = 'Write a certain jsonschema to stdout.'
+DESCRIPTION = 'Write a jsonschema to stdout.'
 
 
 def attach_args(parser):

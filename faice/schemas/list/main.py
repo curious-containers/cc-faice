@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from cc_core.commons.schema_list import schemas
 
 
-DESCRIPTION = 'Show list of all available jsonschemas used by faice and cc-core.'
+DESCRIPTION = 'List of all available jsonschemas defined in cc-core.'
 
 
 def main():

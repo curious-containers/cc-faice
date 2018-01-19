@@ -3,12 +3,10 @@ from collections import OrderedDict
 from argparse import ArgumentParser
 
 from faice.agent.main import main as agent_main
-from faice.schema_list.main import main as schema_list_main
-from faice.schema_export.main import main as schema_export_main
+from faice.schemas.main import main as schemas_main
 
 from faice.agent.main import DESCRIPTION as AGENT_DESCRIPTION
-from faice.schema_list.main import DESCRIPTION as SCHEMA_LIST_DESCRIPTION
-from faice.schema_export.main import DESCRIPTION as SCHEMA_EXPORT_DESCRIPTION
+from faice.schemas.main import DESCRIPTION as SCHEMAS_DESCRIPTION
 
 
 SCRIPT_NAME = 'faice'
@@ -20,8 +18,7 @@ DESCRIPTION = 'FAICE Copyright (C) 2017  Christoph Jansen. This software is dist
 
 MODES = OrderedDict([
     ('agent', {'main': agent_main, 'description': AGENT_DESCRIPTION}),
-    ('schema-list', {'main': schema_list_main, 'description': SCHEMA_LIST_DESCRIPTION}),
-    ('schema-export', {'main': schema_export_main, 'description': SCHEMA_EXPORT_DESCRIPTION})
+    ('schemas', {'main': schemas_main, 'description': SCHEMAS_DESCRIPTION})
 ])
 
 

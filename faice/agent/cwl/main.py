@@ -1,5 +1,6 @@
 import os
 import json
+from uuid import uuid4
 from argparse import ArgumentParser
 
 from cc_core.commons.files import load_and_read
@@ -23,8 +24,12 @@ def attach_args(parser):
         help='JOB_FILE in the CWL job format (json/yaml) as local path or http url.'
     )
     parser.add_argument(
-        '--no-pull', action='store_true',
-        help='Do not explicitely pull Docker image.'
+        '--disable-pull', action='store_true',
+        help='Do not try to pull Docker images.'
+    )
+    parser.add_argument(
+        '--leave-container', action='store_true',
+        help='Do not delete Docker container used by jobs after they exit.'
     )
 
 
@@ -42,9 +47,10 @@ def main():
     return 0
 
 
-def run(cwl_file, job_file, no_pull):
+def run(cwl_file, job_file, disable_pull, leave_container):
     result = {
         'container_data': None,
+        'container_name': None,
         'debug_info': None
     }
 
@@ -72,7 +78,9 @@ def run(cwl_file, job_file, no_pull):
 
         rw_mappings = [(work_dir, mapped_work_dir)]
 
-        docker_manager = DockerManager()
+        container_name = str(uuid4())
+        result['container_name'] = container_name
+        docker_manager = DockerManager(container_name)
 
         if not os.path.exists(work_dir):
             os.makedirs(work_dir)
@@ -81,12 +89,15 @@ def run(cwl_file, job_file, no_pull):
             json.dump(container_job_data, f)
 
         image = cwl_data['requirements']['DockerRequirement']['dockerPull']
-        if not no_pull:
+        if not disable_pull:
             docker_manager.pull(image)
 
         command = 'ccagent cwl {} {}'.format(mapped_cwl_file, mapped_container_job_file)
+        remove_container = not leave_container
 
-        container_data = docker_manager.run_container(image, command, ro_mappings, rw_mappings, mapped_work_dir)
+        container_data = docker_manager.run_container(
+            image, command, ro_mappings, rw_mappings, mapped_work_dir, remove_container
+        )
         result['container_data'] = container_data
     except:
         result['debug_info'] = exception_format()

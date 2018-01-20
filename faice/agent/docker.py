@@ -1,7 +1,6 @@
 import os
 import json
 import docker
-from uuid import uuid4
 
 from cc_core.commons.cwl import location
 
@@ -42,17 +41,17 @@ def input_volume_mappings(job_data, container_job_data, input_dir):
 
 
 class DockerManager:
-    def __init__(self):
+    def __init__(self, container_name):
+        self._container_name = container_name
         self._client = docker.DockerClient(
             base_url='unix://var/run/docker.sock',
             version='auto'
         )
-        self.container_name = str(uuid4())
 
     def pull(self, image):
         self._client.images.pull(image)
 
-    def run_container(self, image, command, ro_mappings, rw_mappings, work_dir):
+    def run_container(self, image, command, ro_mappings, rw_mappings, work_dir, remove):
         binds = {}
 
         for host_vol, container_vol in ro_mappings:
@@ -71,9 +70,10 @@ class DockerManager:
             image,
             command,
             volumes=binds,
-            name=self.container_name,
+            name=self._container_name,
             user='1000:1000',
             working_dir=work_dir,
+            remove=remove
         )
 
         return json.loads(std_out.decode('utf-8'))

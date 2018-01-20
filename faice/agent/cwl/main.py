@@ -3,9 +3,7 @@ import json
 from argparse import ArgumentParser
 
 from cc_core.commons.files import load_and_read
-from cc_core.commons.cwl import cwl_to_command, cwl_validation
-from cc_core.commons.cwl import cwl_input_files, cwl_output_files, cwl_input_file_check, cwl_output_file_check
-from cc_core.commons.shell import execute
+from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format
 
 from faice.agent.docker import job_to_container_job, input_volume_mappings, DockerManager

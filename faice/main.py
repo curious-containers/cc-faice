@@ -6,9 +6,11 @@ from faice.version import VERSION
 
 from faice.agent.main import main as agent_main
 from faice.schemas.main import main as schemas_main
+from faice.file_server.main import main as file_server_main
 
 from faice.agent.main import DESCRIPTION as AGENT_DESCRIPTION
 from faice.schemas.main import DESCRIPTION as SCHEMAS_DESCRIPTION
+from faice.file_server.main import DESCRIPTION as FILE_SERVER_DESCRIPTION
 
 
 SCRIPT_NAME = 'faice'
@@ -18,7 +20,8 @@ DESCRIPTION = 'FAICE Copyright (C) 2018  Christoph Jansen. This software is dist
 
 MODES = OrderedDict([
     ('agent', {'main': agent_main, 'description': AGENT_DESCRIPTION}),
-    ('schemas', {'main': schemas_main, 'description': SCHEMAS_DESCRIPTION})
+    ('schemas', {'main': schemas_main, 'description': SCHEMAS_DESCRIPTION}),
+    ('file-server', {'main': file_server_main, 'description': FILE_SERVER_DESCRIPTION})
 ])
 
 

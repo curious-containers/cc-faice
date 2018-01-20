@@ -9,9 +9,7 @@ from cc_core.commons.shell import execute
 from cc_core.commons.exceptions import exception_format
 
 
-DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its corresponding JOB_FILE. This tool is similar ' \
-              'to agents implemented in cc-core, but uses container technologies. Refer to the CWL ' \
-              '(http://www.commonwl.org) documentation for more details.'
+DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its corresponding JOB_FILE in a container.'
 
 
 def attach_args(parser):
@@ -25,7 +23,7 @@ def attach_args(parser):
     )
     parser.add_argument(
         '-d', '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
-        help='Output directory in container, default home directory.'
+        help='Output directory in container, default directory is current working directory.'
     )
 
 
@@ -59,7 +57,8 @@ def run(cwl_file, job_file, outdir):
         cwl_validation(cwl_data, job_data)
 
         input_dir = os.path.split(os.path.expanduser(job_file))[0]
-        container_input_dir = '/inputs'
+        container_input_dir = '/cwl/inputs'
+        container_output_dir = '/cwl/workdir'
 
         command = cwl_to_command(cwl_data, job_data, input_dir=input_dir, check_base_command=False)
         result['command'] = command

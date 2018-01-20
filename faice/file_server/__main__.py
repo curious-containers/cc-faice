@@ -1,4 +1,4 @@
-from faice.schemas.export.main import main
+from faice.file_server.main import main
 
 
 if __name__ == '__main__':

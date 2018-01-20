@@ -1,9 +1,7 @@
 from argparse import ArgumentParser
 
 
-DESCRIPTION = 'Run an experiment as described in a RED_FILE. This tool is similar to agents implemented in ' \
-              'cc-core, but uses container technologies. Refer to the RED documentation for more ' \
-              'details.'
+DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container.'
 
 
 def attach_args(parser):

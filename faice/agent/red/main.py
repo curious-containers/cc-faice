@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 
 
-DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container.'
+DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with cc-core.'
 
 
 def attach_args(parser):

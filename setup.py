@@ -25,6 +25,9 @@ setup(
     license='AGPL-3.0',
     platforms=['any'],
     install_requires=[
-        'cc-core'
+        'cc-core',
+        'flask',
+        'werkzeug',
+        'docker'
     ]
 )

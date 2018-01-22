@@ -1,4 +1,4 @@
-from faice.file_server.main import main
+from cc_faice.agent.red.main import main
 
 
 if __name__ == '__main__':

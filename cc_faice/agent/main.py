@@ -2,20 +2,20 @@ import sys
 from collections import OrderedDict
 from argparse import ArgumentParser
 
-from faice.schemas.list.main import main as list_main
-from faice.schemas.export.main import main as export_main
+from cc_faice.agent.cwl.main import main as cwl_main
+from cc_faice.agent.red.main import main as red_main
 
-from faice.schemas.list.main import DESCRIPTION as LIST_DESCRIPTION
-from faice.schemas.export.main import DESCRIPTION as EXPORT_DESCRIPTION
+from cc_faice.agent.cwl.main import DESCRIPTION as CWL_DESCRIPTION
+from cc_faice.agent.red.main import DESCRIPTION as RED_DESCRIPTION
 
 
-SCRIPT_NAME = 'faice schemas'
+SCRIPT_NAME = 'faice agent'
 
-DESCRIPTION = 'List or export jsonschemas defined in cc-core.'
+DESCRIPTION = 'Run a RED experiment or a CWL CommandLineTool.'
 
 MODES = OrderedDict([
-    ('list', {'main': list_main, 'description': LIST_DESCRIPTION}),
-    ('export', {'main': export_main, 'description': EXPORT_DESCRIPTION})
+    ('cwl', {'main': cwl_main, 'description': CWL_DESCRIPTION}),
+    ('red', {'main': red_main, 'description': RED_DESCRIPTION})
 ])
 
 
@@ -23,7 +23,7 @@ def main():
     sys.argv[0] = SCRIPT_NAME
 
     parser = ArgumentParser(description=DESCRIPTION)
-    subparsers = parser.add_subparsers(title='tools')
+    subparsers = parser.add_subparsers(title='modes')
 
     sub_parser = None
     for key, val in MODES.items():

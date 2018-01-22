@@ -7,7 +7,8 @@ from cc_core.commons.files import load_and_read
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format
 
-from faice.agent.docker import job_to_container_job, input_volume_mappings, DockerManager
+from cc_faice.commons.compatibility import version_validation
+from cc_faice.commons.docker import job_to_container_job, input_volume_mappings, DockerManager
 
 
 DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its corresponding JOB_FILE in a container with ' \
@@ -17,11 +18,11 @@ DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its correspo
 def attach_args(parser):
     parser.add_argument(
         'cwl_file', action='store', type=str, metavar='CWL_FILE',
-        help='CWL_FILE containing a CLI description (json/yaml) as local path or http url.'
+        help='CWL_FILE (json or yaml) containing a CLI description as local path or http url.'
     )
     parser.add_argument(
         'job_file', action='store', type=str, metavar='JOB_FILE',
-        help='JOB_FILE in the CWL job format (json/yaml) as local path or http url.'
+        help='JOB_FILE (json or yaml) in the CWL job format as local path or http url.'
     )
     parser.add_argument(
         '-d', '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
@@ -38,15 +39,13 @@ def attach_args(parser):
 
 
 def main():
+    version_validation()
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()
 
     result = run(**args.__dict__)
     print(json.dumps(result, indent=4))
-
-    if result['debug_info']:
-        return 1
 
     return 0
 
@@ -94,7 +93,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container):
 
         container_name = str(uuid4())
         result['container']['name'] = container_name
-        docker_manager = DockerManager(container_name)
+        docker_manager = DockerManager()
 
         image = cwl_data['requirements']['DockerRequirement']['dockerPull']
         if not disable_pull:
@@ -112,7 +111,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container):
             json.dump(container_job_data, f)
 
         ccagent_data = docker_manager.run_container(
-            image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
+            container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
         )
         result['container']['ccagent'] = ccagent_data
     except:

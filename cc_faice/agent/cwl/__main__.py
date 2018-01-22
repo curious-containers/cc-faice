@@ -1,4 +1,4 @@
-from faice.schemas.list.main import main
+from cc_faice.agent.cwl.main import main
 
 
 if __name__ == '__main__':

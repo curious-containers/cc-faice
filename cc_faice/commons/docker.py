@@ -41,8 +41,7 @@ def input_volume_mappings(job_data, container_job_data, input_dir):
 
 
 class DockerManager:
-    def __init__(self, container_name):
-        self._container_name = container_name
+    def __init__(self):
         self._client = docker.DockerClient(
             base_url='unix://var/run/docker.sock',
             version='auto'
@@ -51,7 +50,7 @@ class DockerManager:
     def pull(self, image):
         self._client.images.pull(image)
 
-    def run_container(self, image, command, ro_mappings, rw_mappings, work_dir, remove):
+    def run_container(self, name, image, command, ro_mappings, rw_mappings, work_dir, leave_container):
         binds = {}
 
         for host_vol, container_vol in ro_mappings:
@@ -70,10 +69,10 @@ class DockerManager:
             image,
             command,
             volumes=binds,
-            name=self._container_name,
+            name=name,
             user='1000:1000',
             working_dir=work_dir,
-            remove=remove
+            remove=not leave_container
         )
 
         return json.loads(std_out.decode('utf-8'))

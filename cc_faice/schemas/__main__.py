@@ -1,4 +1,4 @@
-from faice.agent.red.main import main
+from cc_faice.schemas.main import main
 
 
 if __name__ == '__main__':

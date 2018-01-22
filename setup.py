@@ -6,7 +6,7 @@ description = 'FAICE (Fair Collaboration and Experiments) is part of the Curious
               'researchers to perform and distribute reproducible data-driven experiments.'
 
 setup(
-    name='faice',
+    name='cc-faice',
     version='2.0.0',
     summary=description,
     description=description,
@@ -14,10 +14,15 @@ setup(
     author_email='Christoph.Jansen@htw-berlin.de',
     url='https://github.com/curious-containers/cc-faice',
     packages=[
-        'faice',
-        'faice.agent',
-        'faice.schema_list',
-        'faice.schema_export'
+        'cc_faice',
+        'cc_faice.agent',
+        'cc_faice.agent.cwl',
+        'cc_faice.agent.red',
+        'cc_faice.commons',
+        'cc_faice.file_server',
+        'cc_faice.schemas',
+        'cc_faice.schemas.list',
+        'cc_faice.schemas.export'
     ],
     entry_points={
         'console_scripts': ['faice=faice.main:main']

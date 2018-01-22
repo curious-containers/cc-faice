@@ -2,15 +2,15 @@ import sys
 from collections import OrderedDict
 from argparse import ArgumentParser
 
-from faice.version import VERSION
+from cc_faice.version import VERSION
 
-from faice.agent.main import main as agent_main
-from faice.schemas.main import main as schemas_main
-from faice.file_server.main import main as file_server_main
+from cc_faice.agent.main import main as agent_main
+from cc_faice.schemas.main import main as schemas_main
+from cc_faice.file_server.main import main as file_server_main
 
-from faice.agent.main import DESCRIPTION as AGENT_DESCRIPTION
-from faice.schemas.main import DESCRIPTION as SCHEMAS_DESCRIPTION
-from faice.file_server.main import DESCRIPTION as FILE_SERVER_DESCRIPTION
+from cc_faice.agent.main import DESCRIPTION as AGENT_DESCRIPTION
+from cc_faice.schemas.main import DESCRIPTION as SCHEMAS_DESCRIPTION
+from cc_faice.file_server.main import DESCRIPTION as FILE_SERVER_DESCRIPTION
 
 
 SCRIPT_NAME = 'faice'

@@ -33,6 +33,7 @@ setup(
         'cc-core',
         'flask',
         'werkzeug',
-        'docker'
+        'docker',
+        'Jinja2'
     ]
 )

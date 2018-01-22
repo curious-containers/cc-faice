@@ -11,7 +11,7 @@ from faice.agent.docker import job_to_container_job, input_volume_mappings, Dock
 
 
 DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its corresponding JOB_FILE in a container with ' \
-              'cc-core.'
+              'ccagent (cc_core.agent.cwl).'
 
 
 def attach_args(parser):
@@ -22,6 +22,10 @@ def attach_args(parser):
     parser.add_argument(
         'job_file', action='store', type=str, metavar='JOB_FILE',
         help='JOB_FILE in the CWL job format (json/yaml) as local path or http url.'
+    )
+    parser.add_argument(
+        '-d', '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
+        help='Output directory, default current directory. Will be passed to ccagent in the container.'
     )
     parser.add_argument(
         '--disable-pull', action='store_true',
@@ -47,10 +51,17 @@ def main():
     return 0
 
 
-def run(cwl_file, job_file, disable_pull, leave_container):
+def run(cwl_file, job_file, outdir, disable_pull, leave_container):
     result = {
-        'container_data': None,
-        'container_name': None,
+        'container': {
+            'command': None,
+            'name': None,
+            'volumes': {
+                'read_only': None,
+                'read_write': None
+            },
+            'ccagent': None
+        },
         'debug_info': None
     }
 
@@ -78,9 +89,21 @@ def run(cwl_file, job_file, disable_pull, leave_container):
 
         rw_mappings = [(work_dir, mapped_work_dir)]
 
+        result['container']['volumes']['read_only'] = ro_mappings
+        result['container']['volumes']['read_write'] = rw_mappings
+
         container_name = str(uuid4())
-        result['container_name'] = container_name
+        result['container']['name'] = container_name
         docker_manager = DockerManager(container_name)
+
+        image = cwl_data['requirements']['DockerRequirement']['dockerPull']
+        if not disable_pull:
+            docker_manager.pull(image)
+
+        command = 'ccagent cwl {} {}'.format(mapped_cwl_file, mapped_container_job_file)
+        if outdir:
+            command = '{} --outdir={}'.format(command, outdir)
+        result['container']['command'] = command
 
         if not os.path.exists(work_dir):
             os.makedirs(work_dir)
@@ -88,17 +111,10 @@ def run(cwl_file, job_file, disable_pull, leave_container):
         with open(container_job_file, 'w') as f:
             json.dump(container_job_data, f)
 
-        image = cwl_data['requirements']['DockerRequirement']['dockerPull']
-        if not disable_pull:
-            docker_manager.pull(image)
-
-        command = 'ccagent cwl {} {}'.format(mapped_cwl_file, mapped_container_job_file)
-        remove_container = not leave_container
-
-        container_data = docker_manager.run_container(
-            image, command, ro_mappings, rw_mappings, mapped_work_dir, remove_container
+        ccagent_data = docker_manager.run_container(
+            image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
         )
-        result['container_data'] = container_data
+        result['container']['ccagent'] = ccagent_data
     except:
         result['debug_info'] = exception_format()
 

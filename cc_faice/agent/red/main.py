@@ -14,7 +14,7 @@ DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with 
 
 def attach_args(parser):
     parser.add_argument(
-        '-r', 'red_file', action='store', type=str, metavar='RED_FILE', required=True,
+        '-r', '--red-file', action='store', type=str, metavar='RED_FILE', required=True,
         help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
     )
     parser.add_argument(
@@ -54,12 +54,12 @@ def run(red_file, template_values_file, outdir, disable_pull, leave_container):
             'command': None,
             'name': None,
             'volumes': {
-                'read_only': None,
-                'read_write': None
+                'readOnly': None,
+                'readWrite': None
             },
             'ccagent': None
         },
-        'debug_info': None
+        'debugInfo': None
     }
 
     try:
@@ -74,6 +74,6 @@ def run(red_file, template_values_file, outdir, disable_pull, leave_container):
 
         red_validation(red_data)
     except:
-        result['debug_info'] = exception_format()
+        result['debugInfo'] = exception_format()
 
     return result

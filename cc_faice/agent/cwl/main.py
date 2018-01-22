@@ -56,12 +56,12 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container):
             'command': None,
             'name': None,
             'volumes': {
-                'read_only': None,
-                'read_write': None
+                'readOnly': None,
+                'readWrite': None
             },
             'ccagent': None
         },
-        'debug_info': None
+        'debugInfo': None
     }
 
     try:
@@ -88,8 +88,8 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container):
 
         rw_mappings = [(work_dir, mapped_work_dir)]
 
-        result['container']['volumes']['read_only'] = ro_mappings
-        result['container']['volumes']['read_write'] = rw_mappings
+        result['container']['volumes']['readOnly'] = ro_mappings
+        result['container']['volumes']['readWrite'] = rw_mappings
 
         container_name = str(uuid4())
         result['container']['name'] = container_name
@@ -115,6 +115,6 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container):
         )
         result['container']['ccagent'] = ccagent_data
     except:
-        result['debug_info'] = exception_format()
+        result['debugInfo'] = exception_format()
 
     return result

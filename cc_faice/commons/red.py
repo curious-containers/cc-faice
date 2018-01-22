@@ -16,8 +16,8 @@ def red_validation(red_data):
     except:
         raise RedSpecificationError('red does not comply with jsonschema')
 
-    red_version = red_data['red_version']
-    cwl_data = red_data['cwl']
+    red_version = red_data['redVersion']
+    cwl_data = red_data['cli']
     inputs_data = red_data['inputs']
     outputs_data = red_data['outputs']
 

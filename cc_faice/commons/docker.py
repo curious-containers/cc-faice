@@ -1,8 +1,8 @@
 import os
-import json
 import docker
 
 from cc_core.commons.cwl import location
+from cc_core.commons.files import read
 
 
 def job_to_container_job(job_data, mapped_input_dir):
@@ -35,7 +35,7 @@ def input_volume_mappings(job_data, container_job_data, input_dir):
             file_path = os.path.join(os.path.expanduser(input_dir), file_path)
 
         container_file_path = container_job_data[key]['path']
-        volumes.append((os.path.abspath(file_path), container_file_path))
+        volumes.append([os.path.abspath(file_path), container_file_path])
 
     return volumes
 
@@ -75,4 +75,4 @@ class DockerManager:
             remove=not leave_container
         )
 
-        return json.loads(std_out.decode('utf-8'))
+        return read(std_out.decode('utf-8'), 'CCAGENT_OUTPUT')

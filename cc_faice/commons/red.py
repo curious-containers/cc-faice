@@ -2,9 +2,9 @@ import jsonschema
 from copy import deepcopy
 from jinja2 import Template, Environment, meta
 
-from cc_core.commons.schemas.red import red_schema
+from cc_core.commons.schemas.red import red_schema, red_jinja_schema
 from cc_core.commons.exceptions import RedSpecificationError
-from cc_core.commons.cwl_io import cwl_io_validation
+from cc_core.commons.red import red_validation as core_red_validation
 
 from cc_faice.version import RED_VERSION
 from cc_faice.commons.formatting import wrapped_print
@@ -14,7 +14,7 @@ def red_validation(red_data):
     try:
         jsonschema.validate(red_data, red_schema)
     except:
-        raise RedSpecificationError('red does not comply with jsonschema')
+        raise RedSpecificationError('red file does not comply with jsonschema')
 
     red_version = red_data['redVersion']
     cwl_data = red_data['cli']
@@ -28,16 +28,25 @@ def red_validation(red_data):
             )
         )
 
-    cwl_io_validation(cwl_data, inputs_data, outputs_data)
+    core_red_validation(cwl_data, inputs_data, outputs_data)
 
 
-def parse_and_fill_template(template, template_values, non_interactive):
-    template_values_copy = deepcopy(template_values)
+def jinja_validation(jinja_data):
+    try:
+        jsonschema.validate(jinja_data, red_jinja_schema)
+    except:
+        raise RedSpecificationError('jinja file does not comply with jsonschema')
+
+
+def parse_and_fill_template(template, jinja_data, non_interactive):
+    template_values = {}
+    if jinja_data:
+        template_values = deepcopy(jinja_data)
     filled_template = template
     template_variables = _template_variables(template)
 
     if template_variables:
-        remaining_template_variables = [v for v in template_variables if v not in template_values_copy]
+        remaining_template_variables = [v for v in template_variables if v not in template_values]
 
         if remaining_template_variables and not non_interactive:
             out = [
@@ -52,13 +61,13 @@ def parse_and_fill_template(template, template_values, non_interactive):
             wrapped_print(out)
 
             for v in remaining_template_variables:
-                template_values_copy[v] = input('{}: '.format(v))
+                template_values[v] = input('{}: '.format(v))
 
         for v in template_variables:
-            if not template_values_copy.get(v):
-                template_values_copy[v] = 'null'
+            if not template_values.get(v):
+                template_values[v] = 'null'
         t = Template(template)
-        filled_template = t.render(template_values_copy)
+        filled_template = t.render(template_values)
 
     return filled_template
 

@@ -1,12 +1,11 @@
 import json
 from argparse import ArgumentParser
 
-from cc_core.commons.files import load, read, load_and_read
+from cc_core.commons.files import load, read, load_and_read, dump_print
 from cc_core.commons.exceptions import exception_format
 
 from cc_faice.commons.compatibility import version_validation
-from cc_faice.commons.red import parse_and_fill_template
-from cc_faice.commons.red import red_validation
+from cc_faice.commons.red import parse_and_fill_template, red_validation, jinja_validation
 
 
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
@@ -14,16 +13,16 @@ DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with 
 
 def attach_args(parser):
     parser.add_argument(
-        '-r', '--red-file', action='store', type=str, metavar='RED_FILE', required=True,
+        'red_file', action='store', type=str, metavar='RED_FILE',
         help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
     )
     parser.add_argument(
-        '-t', '--template_values_file', action='store', type=str, metavar='TEMPLATE_VALUES_FILE',
-        help='TEMPLATE_VALUES_FILE (json or yaml) containing values for RED_FILE template variables as local path '
+        '-j', '--jinja-file', action='store', type=str, metavar='JINJA_FILE',
+        help='JINJA_FILE (json or yaml) containing values for jinja template variables in RED_FILE as local path '
              'or http url.'
     )
     parser.add_argument(
-        '-d', '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
+        '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
         help='Output directory, default current directory. Will be passed to ccagent in the container.'
     )
     parser.add_argument(
@@ -34,6 +33,14 @@ def attach_args(parser):
         '--leave-container', action='store_true',
         help='Do not delete Docker container used by jobs after they exit.'
     )
+    parser.add_argument(
+        '--non-interactive', action='store_true',
+        help='Do not ask for jinja template values interactively.'
+    )
+    parser.add_argument(
+        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml'], default='json',
+        help='Dump format for data generated or aggregated by the agent.'
+    )
 
 
 def main():
@@ -43,12 +50,12 @@ def main():
     args = parser.parse_args()
 
     result = run(**args.__dict__)
-    print(json.dumps(result, indent=4))
+    dump_print(result, args.dump_format)
 
     return 0
 
 
-def run(red_file, template_values_file, outdir, disable_pull, leave_container):
+def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interactive):
     result = {
         'container': {
             'command': None,
@@ -65,13 +72,13 @@ def run(red_file, template_values_file, outdir, disable_pull, leave_container):
     try:
         red_raw = load(red_file, 'RED_FILE')
 
-        template_values_data = {}
-        if template_values_file:
-            template_values_data = load_and_read(template_values_file, 'TEMPLATE_VALUES_FILE')
+        jinja_data = None
+        if jinja_file:
+            jinja_data = load_and_read(jinja_file, 'JINJA_FILE')
+            jinja_validation(jinja_data)
 
-        red_raw_filled = parse_and_fill_template(red_raw, template_values_data, False)
+        red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
         red_data = read(red_raw_filled, 'RED_FILE')
-
         red_validation(red_data)
     except:
         result['debugInfo'] = exception_format()

@@ -10,6 +10,10 @@ from cc_faice.version import RED_VERSION
 from cc_faice.commons.formatting import wrapped_print
 
 
+def write_red_files(red_data, cwl_file_path, inputs_file_path, outputs_file_path):
+    pass
+
+
 def red_validation(red_data):
     try:
         jsonschema.validate(red_data, red_schema)

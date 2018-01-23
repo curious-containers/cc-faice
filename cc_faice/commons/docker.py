@@ -47,8 +47,8 @@ class DockerManager:
             version='auto'
         )
 
-    def pull(self, image):
-        self._client.images.pull(image)
+    def pull(self, image, auth=None):
+        self._client.images.pull(image, auth_config=auth)
 
     def run_container(self, name, image, command, ro_mappings, rw_mappings, work_dir, leave_container):
         binds = {}

@@ -2,7 +2,7 @@ import os
 from uuid import uuid4
 from argparse import ArgumentParser
 
-from cc_core.commons.files import load_and_read, dump, dump_print
+from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format
 
@@ -36,8 +36,8 @@ def attach_args(parser):
         help='Do not delete Docker container used by jobs after they exit.'
     )
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml'], default='json',
-        help='Dump format for data generated or aggregated by the agent.'
+        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
+        default='json', help='Dump format for data generated or aggregated by the agent.'
     )
 
 
@@ -73,22 +73,24 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format):
 
         cwl_validation(cwl_data, job_data, docker_requirement=True)
 
+        ext = file_extension(dump_format)
         input_dir = os.path.split(os.path.expanduser(job_file))[0]
         work_dir = os.path.join(os.getcwd(), 'work')
-        container_job_file = os.path.join(os.getcwd(), 'container-job.yml')
+        job_export_file = os.path.join(os.getcwd(), 'job-export.{}'.format(ext))
         cwl_file_name = os.path.split(cwl_file)[1]
 
         mapped_input_dir = '/opt/cc/inputs'
         mapped_work_dir = '/opt/cc/work'
         mapped_cwl_file = os.path.join('/opt/cc', cwl_file_name)
-        mapped_container_job_file = '/opt/cc/container-job.yml'
+        mapped_container_job_file = '/opt/cc/job-export.{}'.format(ext)
 
         container_job_data = job_to_container_job(job_data, mapped_input_dir)
 
         ro_mappings = input_volume_mappings(job_data, container_job_data, input_dir)
-        ro_mappings.append([os.path.abspath(cwl_file), mapped_cwl_file])
-        ro_mappings.append([os.path.abspath(container_job_file), mapped_container_job_file])
-
+        ro_mappings += [
+            [os.path.abspath(cwl_file), mapped_cwl_file],
+            [job_export_file, mapped_container_job_file]
+        ]
         rw_mappings = [[work_dir, mapped_work_dir]]
 
         result['container']['volumes']['readOnly'] = ro_mappings
@@ -110,7 +112,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format):
         if not os.path.exists(work_dir):
             os.makedirs(work_dir)
 
-        dump(container_job_data, dump_format, container_job_file)
+        dump(container_job_data, dump_format, job_export_file)
 
         ccagent_data = docker_manager.run_container(
             container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container

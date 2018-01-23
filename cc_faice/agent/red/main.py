@@ -1,11 +1,13 @@
-import json
+import os
+from uuid import uuid4
 from argparse import ArgumentParser
 
-from cc_core.commons.files import load, read, load_and_read, dump_print
+from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
 from cc_core.commons.exceptions import exception_format
 
 from cc_faice.commons.compatibility import version_validation
 from cc_faice.commons.red import parse_and_fill_template, red_validation, jinja_validation
+from cc_faice.commons.docker import DockerManager
 
 
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
@@ -55,7 +57,7 @@ def main():
     return 0
 
 
-def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interactive):
+def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interactive, dump_format):
     result = {
         'container': {
             'command': None,
@@ -80,6 +82,58 @@ def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interac
         red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
         red_data = read(red_raw_filled, 'RED_FILE')
         red_validation(red_data)
+
+        ext = file_extension(dump_format)
+        work_dir = os.path.join(os.getcwd(), 'work')
+        cwl_export_file = os.path.join(os.getcwd(), 'cwl-export.{}'.format(ext))
+        red_inputs_export_file = os.path.join(os.getcwd(), 'red-inputs-export.{}'.format(ext))
+        red_outputs_export_file = os.path.join(os.getcwd(), 'red-outputs-export.{}'.format(ext))
+
+        mapped_work_dir = '/opt/cc/work'
+        mapped_cwl_export_file = os.path.join('/opt/cc/cwl-export.{}'.format(ext))
+        mapped_red_inputs_export_file = os.path.join('/opt/cc/red-inputs-export.{}'.format(ext))
+        mapped_red_outputs_export_file = os.path.join('/opt/cc/red-outputs-export.{}'.format(ext))
+
+        ro_mappings = [
+            [cwl_export_file, mapped_cwl_export_file],
+            [red_inputs_export_file, mapped_red_inputs_export_file],
+            [red_outputs_export_file, mapped_red_outputs_export_file]
+        ]
+        rw_mappings = [[work_dir, mapped_work_dir]]
+
+        result['container']['volumes']['readOnly'] = ro_mappings
+        result['container']['volumes']['readWrite'] = rw_mappings
+
+        container_name = str(uuid4())
+        result['container']['name'] = container_name
+        docker_manager = DockerManager()
+
+        image = red_data['container']['settings']['image']['url']
+        registry_auth = red_data['container']['settings']['image'].get('auth')
+        if not disable_pull:
+            docker_manager.pull(image, auth=registry_auth)
+
+        command = 'ccagent red {} {} -o {} --dump-format={}'.format(
+            mapped_cwl_export_file,
+            mapped_red_inputs_export_file,
+            mapped_red_outputs_export_file,
+            dump_format
+        )
+        if outdir:
+            command = '{} --outdir={}'.format(command, outdir)
+        result['container']['command'] = command
+
+        if not os.path.exists(work_dir):
+            os.makedirs(work_dir)
+
+        dump(red_data['cli'], dump_format, cwl_export_file)
+        dump(red_data['inputs'], dump_format, red_inputs_export_file)
+        dump(red_data['outputs'], dump_format, red_outputs_export_file)
+
+        ccagent_data = docker_manager.run_container(
+            container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
+        )
+        result['container']['ccagent'] = ccagent_data
     except:
         result['debugInfo'] = exception_format()
 

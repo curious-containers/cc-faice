@@ -11,7 +11,7 @@ DESCRIPTION = 'Write a jsonschema to stdout.'
 def attach_args(parser):
     parser.add_argument(
         'schema', action='store', type=str, metavar='SCHEMA',
-        help='SCHEMA as shown by schema-list.'
+        help='SCHEMA as in "faice schema list".'
     )
 
 
@@ -28,5 +28,5 @@ def run(schema):
             print(json.dumps(s, indent=4))
             return 0
 
-    print('Schema "{}" not found. Use schema-list for available schemas.'.format(schema), file=sys.stderr)
+    print('Schema "{}" not found. Use "faice schema list" for available schemas.'.format(schema), file=sys.stderr)
     return 1

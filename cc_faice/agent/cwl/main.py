@@ -6,7 +6,6 @@ from cc_core.commons.files import load_and_read, dump, dump_print, file_extensio
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format
 
-from cc_faice.commons.compatibility import version_validation
 from cc_faice.commons.docker import job_to_container_job, input_volume_mappings, DockerManager
 
 
@@ -42,7 +41,6 @@ def attach_args(parser):
 
 
 def main():
-    version_validation()
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()

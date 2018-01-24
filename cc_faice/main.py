@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 from cc_faice.version import VERSION
+from cc_faice.commons.compatibility import version_validation
 
 from cc_faice.agent.main import main as agent_main
 from cc_faice.schemas.main import main as schemas_main
@@ -28,4 +29,5 @@ MODES = OrderedDict([
 
 
 def main():
+    version_validation()
     cli_modes(SCRIPT_NAME, TITLE, DESCRIPTION, MODES, VERSION)

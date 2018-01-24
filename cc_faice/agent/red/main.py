@@ -5,7 +5,6 @@ from argparse import ArgumentParser
 from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
 from cc_core.commons.exceptions import exception_format
 
-from cc_faice.commons.compatibility import version_validation
 from cc_faice.commons.red import parse_and_fill_template, red_validation, jinja_validation
 from cc_faice.commons.docker import DockerManager
 
@@ -46,7 +45,6 @@ def attach_args(parser):
 
 
 def main():
-    version_validation()
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()

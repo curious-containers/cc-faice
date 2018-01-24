@@ -3,10 +3,11 @@ from argparse import ArgumentParser
 
 from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
 
+from cc_faice.commons.engines import engine_validation
 from cc_faice.commons.red import parse_and_fill_template, red_validation, jinja_validation
 
 
-DESCRIPTION = 'Export RED_FILE to pure CWL.'
+DESCRIPTION = 'Export RED_FILE to standard CWL compatible with cwltool.'
 
 
 def attach_args(parser):
@@ -56,6 +57,7 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
     red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
     red_data = read(red_raw_filled, 'RED_FILE')
     red_validation(red_data)
+    engine_validation(red_data, 'container', ['docker'], 'faice agent red')
 
     ext = file_extension(dump_format)
     dumped_app_cwl_file = '{}app-cli.cwl'.format(dump_prefix)

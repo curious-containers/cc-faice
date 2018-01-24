@@ -24,6 +24,7 @@ def red_validation(red_data):
     cwl_data = red_data['cli']
     inputs_data = red_data['inputs']
     outputs_data = red_data['outputs']
+    containers_data = red_data['containers']
 
     if not red_version == RED_VERSION:
         raise RedSpecificationError(

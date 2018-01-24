@@ -2,6 +2,8 @@ import os
 from uuid import uuid4
 from argparse import ArgumentParser
 
+from cc_faice.commons.engines import engine_validation
+
 from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
 from cc_core.commons.exceptions import exception_format
 
@@ -84,6 +86,7 @@ def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interac
         red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
         red_data = read(red_raw_filled, 'RED_FILE')
         red_validation(red_data)
+        engine_validation(red_data, 'container', ['docker'], 'faice agent red')
 
         ext = file_extension(dump_format)
         work_dir = 'work'

@@ -9,8 +9,8 @@ DESCRIPTION = 'List of all available jsonschemas defined in cc-core.'
 
 def attach_args(parser):
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml'], default='json',
-        help='Dump format for data generated or aggregated by the agent.'
+        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
+        default='json', help='Dump format for data generated or aggregated by the agent.'
     )
 
 

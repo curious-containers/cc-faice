@@ -12,11 +12,11 @@ DESCRIPTION = 'Write a jsonschema to stdout.'
 def attach_args(parser):
     parser.add_argument(
         'schema', action='store', type=str, metavar='SCHEMA',
-        help='SCHEMA as in "faice schema list".'
+        help='SCHEMA as in "faice schemas list".'
     )
     parser.add_argument(
         '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='json', help='Dump format for data generated or aggregated by the agent.'
+        default='yaml', help='Dump format for data written to files or stdout.'
     )
 
 

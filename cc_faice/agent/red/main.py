@@ -40,7 +40,11 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='json', help='Dump format for data generated or aggregated by the agent.'
+        default='yaml', help='Dump format for data written to files or stdout.'
+    )
+    parser.add_argument(
+        '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
+        help='Name prefix for files dumped to storage.'
     )
 
 
@@ -55,7 +59,7 @@ def main():
     return 0
 
 
-def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interactive, dump_format):
+def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interactive, dump_format, dump_prefix):
     result = {
         'container': {
             'command': None,
@@ -82,22 +86,22 @@ def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interac
         red_validation(red_data)
 
         ext = file_extension(dump_format)
-        work_dir = os.path.join(os.getcwd(), 'work')
-        cwl_export_file = os.path.join(os.getcwd(), 'cwl-export.{}'.format(ext))
-        red_inputs_export_file = os.path.join(os.getcwd(), 'red-inputs-export.{}'.format(ext))
-        red_outputs_export_file = os.path.join(os.getcwd(), 'red-outputs-export.{}'.format(ext))
+        work_dir = 'work'
+        dumped_cwl_file = '{}cli.cwl'.format(dump_prefix)
+        dumped_red_inputs_file = '{}red-inputs.{}'.format(dump_prefix, ext)
+        dumped_red_outputs_file = '{}red-outputs.{}'.format(dump_prefix, ext)
 
         mapped_work_dir = '/opt/cc/work'
-        mapped_cwl_export_file = os.path.join('/opt/cc/cwl-export.{}'.format(ext))
-        mapped_red_inputs_export_file = os.path.join('/opt/cc/red-inputs-export.{}'.format(ext))
-        mapped_red_outputs_export_file = os.path.join('/opt/cc/red-outputs-export.{}'.format(ext))
+        mapped_cwl_file = '/opt/cc/cli.cwl'
+        mapped_red_inputs_file = '/opt/cc/red-inputs.{}'.format(ext)
+        mapped_red_outputs_file = '/opt/cc/red-outputs.{}'.format(ext)
 
         ro_mappings = [
-            [cwl_export_file, mapped_cwl_export_file],
-            [red_inputs_export_file, mapped_red_inputs_export_file],
-            [red_outputs_export_file, mapped_red_outputs_export_file]
+            [os.path.abspath(dumped_cwl_file), mapped_cwl_file],
+            [os.path.abspath(dumped_red_inputs_file), mapped_red_inputs_file],
+            [os.path.abspath(dumped_red_outputs_file), mapped_red_outputs_file]
         ]
-        rw_mappings = [[work_dir, mapped_work_dir]]
+        rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
 
         result['container']['volumes']['readOnly'] = ro_mappings
         result['container']['volumes']['readWrite'] = rw_mappings
@@ -112,9 +116,9 @@ def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interac
             docker_manager.pull(image, auth=registry_auth)
 
         command = 'ccagent red {} {} -o {} --dump-format={}'.format(
-            mapped_cwl_export_file,
-            mapped_red_inputs_export_file,
-            mapped_red_outputs_export_file,
+            mapped_cwl_file,
+            mapped_red_inputs_file,
+            mapped_red_outputs_file,
             dump_format
         )
         if outdir:
@@ -124,9 +128,9 @@ def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interac
         if not os.path.exists(work_dir):
             os.makedirs(work_dir)
 
-        dump(red_data['cli'], dump_format, cwl_export_file)
-        dump(red_data['inputs'], dump_format, red_inputs_export_file)
-        dump(red_data['outputs'], dump_format, red_outputs_export_file)
+        dump(red_data['cli'], dump_format, dumped_cwl_file)
+        dump(red_data['inputs'], dump_format, dumped_red_inputs_file)
+        dump(red_data['outputs'], dump_format, dumped_red_outputs_file)
 
         ccagent_data = docker_manager.run_container(
             container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container

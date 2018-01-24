@@ -6,7 +6,7 @@ from cc_core.commons.files import load_and_read, dump, dump_print, file_extensio
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format
 
-from cc_faice.commons.docker import job_to_container_job, input_volume_mappings, DockerManager
+from cc_faice.commons.docker import dump_job, input_volume_mappings, DockerManager
 
 
 DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its corresponding JOB_FILE in a container with ' \
@@ -36,7 +36,11 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='json', help='Dump format for data generated or aggregated by the agent.'
+        default='yaml', help='Dump format for data written to files or stdout.'
+    )
+    parser.add_argument(
+        '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
+        help='Name prefix for files dumped to storage.'
     )
 
 
@@ -51,7 +55,7 @@ def main():
     return 0
 
 
-def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format):
+def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, dump_prefix):
     result = {
         'container': {
             'command': None,
@@ -73,23 +77,22 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format):
 
         ext = file_extension(dump_format)
         input_dir = os.path.split(os.path.expanduser(job_file))[0]
-        work_dir = os.path.join(os.getcwd(), 'work')
-        job_export_file = os.path.join(os.getcwd(), 'job-export.{}'.format(ext))
-        cwl_file_name = os.path.split(cwl_file)[1]
+        work_dir = 'work'
+        dumped_job_file = '{}job.{}'.format(dump_prefix, ext)
 
         mapped_input_dir = '/opt/cc/inputs'
         mapped_work_dir = '/opt/cc/work'
-        mapped_cwl_file = os.path.join('/opt/cc', cwl_file_name)
-        mapped_container_job_file = '/opt/cc/job-export.{}'.format(ext)
+        mapped_cwl_file = '/opt/cc/cli.cwl'
+        mapped_job_file = '/opt/cc/job.{}'.format(ext)
 
-        container_job_data = job_to_container_job(job_data, mapped_input_dir)
+        dumped_job_data = dump_job(job_data, mapped_input_dir)
 
-        ro_mappings = input_volume_mappings(job_data, container_job_data, input_dir)
+        ro_mappings = input_volume_mappings(job_data, dumped_job_data, input_dir)
         ro_mappings += [
             [os.path.abspath(cwl_file), mapped_cwl_file],
-            [job_export_file, mapped_container_job_file]
+            [os.path.abspath(dumped_job_file), mapped_job_file]
         ]
-        rw_mappings = [[work_dir, mapped_work_dir]]
+        rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
 
         result['container']['volumes']['readOnly'] = ro_mappings
         result['container']['volumes']['readWrite'] = rw_mappings
@@ -102,7 +105,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format):
         if not disable_pull:
             docker_manager.pull(image)
 
-        command = 'ccagent cwl {} {} --dump-format={}'.format(mapped_cwl_file, mapped_container_job_file, dump_format)
+        command = 'ccagent cwl {} {} --dump-format={}'.format(mapped_cwl_file, mapped_job_file, dump_format)
         if outdir:
             command = '{} --outdir={}'.format(command, outdir)
         result['container']['command'] = command
@@ -110,7 +113,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format):
         if not os.path.exists(work_dir):
             os.makedirs(work_dir)
 
-        dump(container_job_data, dump_format, job_export_file)
+        dump(dumped_job_data, dump_format, dumped_job_file)
 
         ccagent_data = docker_manager.run_container(
             container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container

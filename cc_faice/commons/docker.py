@@ -5,7 +5,7 @@ from cc_core.commons.cwl import location
 from cc_core.commons.files import read
 
 
-def job_to_container_job(job_data, mapped_input_dir):
+def dump_job(job_data, mapped_input_dir):
     job = {}
 
     for key, val in job_data.items():
@@ -22,7 +22,7 @@ def job_to_container_job(job_data, mapped_input_dir):
     return job
 
 
-def input_volume_mappings(job_data, container_job_data, input_dir):
+def input_volume_mappings(job_data, dumped_job_data, input_dir):
     volumes = []
 
     for key, val in job_data.items():
@@ -34,7 +34,7 @@ def input_volume_mappings(job_data, container_job_data, input_dir):
         if not os.path.isabs(file_path):
             file_path = os.path.join(os.path.expanduser(input_dir), file_path)
 
-        container_file_path = container_job_data[key]['path']
+        container_file_path = dumped_job_data[key]['path']
         volumes.append([os.path.abspath(file_path), container_file_path])
 
     return volumes

@@ -32,4 +32,4 @@ def engine_validation(red_data, engine_type, supported, mode):
     try:
         jsonschema.validate(settings, schema)
     except:
-        raise EngineError('invalid settings for {}-engine "{}"'.format(engine_type, engine))
+        raise EngineError('{}-engine "{}" does not comply with jsonschema'.format(engine_type, engine))

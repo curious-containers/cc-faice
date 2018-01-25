@@ -1,10 +1,12 @@
 import os
 from argparse import ArgumentParser
 
-from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
+from cc_core.commons.files import load, read, load_and_read, dump, file_extension, wrapped_print
 
 from cc_faice.commons.engines import engine_validation
 from cc_faice.commons.red import parse_and_fill_template, red_validation, jinja_validation
+from cc_faice.commons.red import dump_agent_cwl, dump_agent_job
+from cc_faice.commons.docker import dump_job
 
 
 DESCRIPTION = 'Export RED_FILE to standard CWL compatible with cwltool.'
@@ -30,11 +32,11 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout.'
+        default='yaml', help='Dump format for data written to files or stdout, default is "yaml".'
     )
     parser.add_argument(
         '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
-        help='Name prefix for files dumped to storage.'
+        help='Name prefix for files dumped to storage, default is "_dumped".'
     )
 
 
@@ -57,12 +59,51 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
     red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
     red_data = read(red_raw_filled, 'RED_FILE')
     red_validation(red_data)
-    engine_validation(red_data, 'container', ['docker'], 'faice agent red')
+    engine_validation(red_data, 'container', ['docker'], 'faice export')
+    if red_data['container']['settings']['image'].get('auth'):
+        wrapped_print([
+            'WARNING: cannot export container.settings.image.auth to cwl.',
+            ''
+        ], error=True)
 
     ext = file_extension(dump_format)
     dumped_app_cwl_file = '{}app-cli.cwl'.format(dump_prefix)
     dumped_app_red_inputs_file = '{}app-red-inputs.{}'.format(dump_prefix, ext)
-    dumped_app_red_outputs_file = os.path.join(os.getcwd(), '{}app-red-outputs.{}'.format(dump_prefix, ext))
-    dumped_app_job_file = os.path.join(os.getcwd(), '{}app-job.{}'.format(dump_prefix, ext))
+    dumped_app_red_outputs_file = '{}app-red-outputs.{}'.format(dump_prefix, ext)
+    dumped_app_job_file = '{}app-job.{}'.format(dump_prefix, ext)
     dumped_agent_cwl_file = '{}agent-cli.cwl'.format(dump_prefix)
-    dumped_agent_job_file = os.path.join(os.getcwd(), '{}agent-job.{}'.format(dump_prefix, ext))
+    dumped_agent_job_file = '{}agent-job.{}'.format(dump_prefix, ext)
+    agent_stdout_file = 'agent-stdout.{}'.format(ext)
+
+    dumped_app_job_data = dump_job(red_data['inputs'], 'input_files')
+    dumped_agent_cwl_data = dump_agent_cwl(red_data, agent_stdout_file)
+    dumped_agent_job_data = dump_agent_job(
+        dumped_app_cwl_file,
+        dumped_app_red_inputs_file,
+        dumped_app_red_outputs_file,
+        outdir,
+        dump_format
+    )
+    dumped_app_cwl_data = red_data['cli']
+    dumped_app_cwl_data['requirements'] = {
+        'DockerRequirement': {
+            'dockerPull': red_data['container']['settings']['image']['url']
+        }
+    }
+    dump(dumped_app_cwl_data, dump_format, dumped_app_cwl_file)
+    dump(red_data['inputs'], dump_format, dumped_app_red_inputs_file)
+    dump(red_data['outputs'], dump_format, dumped_app_red_outputs_file)
+    dump(dumped_app_job_data, dump_format, dumped_app_job_file)
+    dump(dumped_agent_cwl_data, dump_format, dumped_agent_cwl_file)
+    dump(dumped_agent_job_data, dump_format, dumped_agent_job_file)
+
+    wrapped_print([
+        'OPTION 1:',
+        'Use cwltool to execute app in container via "ccagent red" with support for RED inputs and outputs.',
+        '$ cwltool {} {}'.format(dumped_agent_cwl_file, dumped_agent_job_file),
+        '',
+        'OPTION 2:',
+        'Use cwltool to execute app in container with support for local input and output files '
+        '(modify input file paths in {} first).'.format(dumped_app_job_file),
+        '$ cwltool {} {}'.format(dumped_app_cwl_file, dumped_app_job_file)
+    ])

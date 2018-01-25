@@ -10,10 +10,6 @@ from cc_core.commons.red import red_validation as core_red_validation
 from cc_faice.version import RED_VERSION
 
 
-def write_red_files(red_data, cwl_file_path, inputs_file_path, outputs_file_path):
-    pass
-
-
 def red_validation(red_data):
     try:
         jsonschema.validate(red_data, red_schema)
@@ -33,6 +29,85 @@ def red_validation(red_data):
         )
 
     core_red_validation(cwl_data, inputs_data, outputs_data)
+
+
+def dump_agent_cwl(red_data, stdout_file):
+    return {
+        'cwlVersion': 'v1.0',
+        'class': 'CommandLineTool',
+        'baseCommand': ['ccagent', 'red'],
+        'doc': '',
+        'requirements': {
+            'DockerRequirement': {
+                'dockerPull': red_data['container']['settings']['image']['url']
+            }
+        },
+        'inputs': {
+            'cwl-file': {
+                'type': 'File',
+                'inputBinding': {
+                    'position': 0
+                },
+                'doc': ''
+            },
+            'red-inputs-file': {
+                'type': 'File',
+                'inputBinding': {
+                    'position': 1
+                },
+                'doc': ''
+            },
+            'red-outputs-file': {
+                'type': 'File?',
+                'inputBinding': {
+                    'prefix': '--red-outputs-file=',
+                    'separate': False
+                },
+                'doc': ''
+            },
+            'outdir': {
+                'type': 'string?',
+                'inputBinding': {
+                    'prefix': '--outdir=',
+                    'separate': False
+                },
+                'doc': ''
+            },
+            'dump-format': {
+                'type': 'string?',
+                'inputBinding': {
+                    'prefix': '--dump-format=',
+                    'separate': False
+                },
+                'doc': ''
+            }
+        },
+        'outputs': {
+            'standard-out': {
+                'type': 'stdout'
+            }
+        },
+        'stdout': stdout_file
+    }
+
+
+def dump_agent_job(app_cwl_file, app_red_inputs_file, app_red_outputs_file, outdir, dump_format):
+    return {
+        'cwl-file': {
+            'class': 'File',
+            'path': app_cwl_file
+        },
+        'red-inputs-file': {
+            'class': 'File',
+            'path': app_red_inputs_file
+        },
+        'red-outputs-file': {
+            'class': 'File',
+            'path': app_red_outputs_file
+        },
+        'outdir': outdir,
+        'dump_format': dump_format
+    }
 
 
 def jinja_validation(jinja_data):

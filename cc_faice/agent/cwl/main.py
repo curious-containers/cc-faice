@@ -36,11 +36,11 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout.'
+        default='yaml', help='Dump format for data written to files or stdout, default is "yaml".'
     )
     parser.add_argument(
         '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
-        help='Name prefix for files dumped to storage.'
+        help='Name prefix for files dumped to storage, default is "_dumped".'
     )
 
 

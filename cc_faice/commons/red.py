@@ -110,6 +110,16 @@ def dump_agent_job(app_cwl_file, app_red_inputs_file, app_red_outputs_file, outd
     }
 
 
+def dump_app_cwl(red_data):
+    app_cwl = deepcopy(red_data['cli'])
+    app_cwl['requirements'] = {
+        'DockerRequirement': {
+            'dockerPull': red_data['container']['settings']['image']['url']
+        }
+    }
+    return app_cwl
+
+
 def jinja_validation(jinja_data):
     try:
         jsonschema.validate(jinja_data, red_jinja_schema)

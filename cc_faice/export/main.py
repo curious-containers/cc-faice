@@ -5,7 +5,7 @@ from cc_core.commons.files import load, read, load_and_read, dump, file_extensio
 
 from cc_faice.commons.engines import engine_validation
 from cc_faice.commons.red import parse_and_fill_template, red_validation, jinja_validation
-from cc_faice.commons.red import dump_agent_cwl, dump_agent_job
+from cc_faice.commons.red import dump_agent_cwl, dump_agent_job, dump_app_cwl
 from cc_faice.commons.docker import dump_job
 
 
@@ -75,7 +75,7 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
     dumped_agent_job_file = '{}agent-job.{}'.format(dump_prefix, ext)
     agent_stdout_file = 'agent-stdout.{}'.format(ext)
 
-    dumped_app_job_data = dump_job(red_data['inputs'], 'input_files')
+    dumped_app_job_data = dump_job(red_data['inputs'], '.')
     dumped_agent_cwl_data = dump_agent_cwl(red_data, agent_stdout_file)
     dumped_agent_job_data = dump_agent_job(
         dumped_app_cwl_file,
@@ -84,12 +84,8 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
         outdir,
         dump_format
     )
-    dumped_app_cwl_data = red_data['cli']
-    dumped_app_cwl_data['requirements'] = {
-        'DockerRequirement': {
-            'dockerPull': red_data['container']['settings']['image']['url']
-        }
-    }
+    dumped_app_cwl_data = dump_app_cwl(red_data)
+
     dump(dumped_app_cwl_data, dump_format, dumped_app_cwl_file)
     dump(red_data['inputs'], dump_format, dumped_app_red_inputs_file)
     dump(red_data['outputs'], dump_format, dumped_app_red_outputs_file)

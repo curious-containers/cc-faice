@@ -2,12 +2,12 @@ import jsonschema
 from copy import deepcopy
 from jinja2 import Template, Environment, meta
 
+from cc_core.commons.files import wrapped_print
 from cc_core.commons.schemas.red import red_schema, red_jinja_schema
 from cc_core.commons.exceptions import RedSpecificationError
 from cc_core.commons.red import red_validation as core_red_validation
 
 from cc_faice.version import RED_VERSION
-from cc_faice.commons.formatting import wrapped_print
 
 
 def write_red_files(red_data, cwl_file_path, inputs_file_path, outputs_file_path):

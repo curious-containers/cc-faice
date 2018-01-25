@@ -1,6 +1,6 @@
 import cc_core.version
 import cc_faice.version
-from cc_faice.commons.formatting import wrapped_print
+from cc_core.commons.files import wrapped_print
 
 
 def version_validation():

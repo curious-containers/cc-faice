@@ -1,4 +1,3 @@
-import os
 from argparse import ArgumentParser
 
 from cc_core.commons.files import load, read, load_and_read, dump, file_extension, wrapped_print

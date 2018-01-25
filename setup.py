@@ -19,10 +19,11 @@ setup(
         'cc_faice.agent.cwl',
         'cc_faice.agent.red',
         'cc_faice.commons',
+        'cc_faice.export',
         'cc_faice.file_server',
         'cc_faice.schemas',
         'cc_faice.schemas.list',
-        'cc_faice.schemas.export'
+        'cc_faice.schemas.show'
     ],
     entry_points={
         'console_scripts': ['faice=faice.main:main']

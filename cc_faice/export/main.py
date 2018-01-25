@@ -93,6 +93,10 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
     dump(dumped_agent_cwl_data, dump_format, dumped_agent_cwl_file)
     dump(dumped_agent_job_data, dump_format, dumped_agent_job_file)
 
+    option2_command = 'cwltool {} {}'.format(dumped_app_cwl_file, dumped_app_job_file)
+    if outdir:
+        option2_command = '{} --outdir {}'.format(option2_command, outdir)
+
     wrapped_print([
         'OPTION 1:',
         'Use cwltool to execute app in container via "ccagent red" with support for RED inputs and outputs.',
@@ -101,5 +105,5 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
         'OPTION 2:',
         'Use cwltool to execute app in container with support for local input and output files '
         '(modify input file paths in {} first).'.format(dumped_app_job_file),
-        '$ cwltool {} {}'.format(dumped_app_cwl_file, dumped_app_job_file)
+        '$ {}'.format(option2_command)
     ])

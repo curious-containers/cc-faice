@@ -92,7 +92,7 @@ def dump_agent_cwl(red_data, stdout_file):
 
 
 def dump_agent_job(app_cwl_file, app_red_inputs_file, app_red_outputs_file, outdir, dump_format):
-    return {
+    agent_job = {
         'cwl-file': {
             'class': 'File',
             'path': app_cwl_file
@@ -105,9 +105,11 @@ def dump_agent_job(app_cwl_file, app_red_inputs_file, app_red_outputs_file, outd
             'class': 'File',
             'path': app_red_outputs_file
         },
-        'outdir': outdir,
         'dump_format': dump_format
     }
+    if outdir:
+        agent_job['outdir'] = outdir
+    return agent_job
 
 
 def dump_app_cwl(red_data):

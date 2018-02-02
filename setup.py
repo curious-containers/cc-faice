@@ -7,7 +7,7 @@ description = 'FAICE (Fair Collaboration and Experiments) is part of the Curious
 
 setup(
     name='cc-faice',
-    version='2.0.0',
+    version='2.0.1',
     summary=description,
     description=description,
     author='Christoph Jansen',
@@ -23,18 +23,20 @@ setup(
         'cc_faice.file_server',
         'cc_faice.schemas',
         'cc_faice.schemas.list',
-        'cc_faice.schemas.show'
+        'cc_faice.schemas.show',
+        'cc_faice.schemas.validate'
     ],
     entry_points={
-        'console_scripts': ['faice=faice.main:main']
+        'console_scripts': ['faice=cc_faice.main:main']
     },
     license='AGPL-3.0',
     platforms=['any'],
     install_requires=[
-        'cc-core',
+        'cc-core >= 2.0, < 2.1',
         'flask',
         'werkzeug',
         'docker',
-        'Jinja2'
+        'Jinja2',
+        'jsonschema'
     ]
 )

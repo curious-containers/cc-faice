@@ -1,11 +1,12 @@
 import sys
+import jsonschema
 from argparse import ArgumentParser
 
 from cc_core.commons.schema_map import schemas
-from cc_core.commons.files import dump_print
+from cc_core.commons.files import load_and_read
 
 
-DESCRIPTION = 'Write a jsonschema to stdout.'
+DESCRIPTION = 'Validate data against schema. Returns code 0 if data is valid.'
 
 
 def attach_args(parser):
@@ -14,8 +15,8 @@ def attach_args(parser):
         help='SCHEMA as in "faice schemas list".'
     )
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout, default is "yaml".'
+        'data_file', action='store', type=str, metavar='DATA_FILE',
+        help='DATA_FILE (json or yaml) to be validated as local path or http url.'
     )
 
 
@@ -26,10 +27,12 @@ def main():
     return run(**args.__dict__)
 
 
-def run(schema, dump_format):
+def run(schema, data_file):
     if schema not in schemas:
         print('Schema "{}" not found. Use "faice schema list" for available schemas.'.format(schema), file=sys.stderr)
         return 1
 
-    dump_print(schemas[schema], dump_format)
+    data = load_and_read(data_file, 'DATA_FILE')
+    jsonschema.validate(data, schemas[schema])
+
     return 0

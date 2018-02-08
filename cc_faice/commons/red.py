@@ -3,32 +3,8 @@ from copy import deepcopy
 from jinja2 import Template, Environment, meta
 
 from cc_core.commons.files import wrapped_print
-from cc_core.commons.schemas.red import red_schema, red_jinja_schema
+from cc_core.commons.schemas.red import red_jinja_schema
 from cc_core.commons.exceptions import RedSpecificationError
-from cc_core.commons.red import red_validation as core_red_validation
-
-from cc_faice.version import RED_VERSION
-
-
-def red_validation(red_data):
-    try:
-        jsonschema.validate(red_data, red_schema)
-    except:
-        raise RedSpecificationError('red file does not comply with jsonschema')
-
-    red_version = red_data['redVersion']
-    cwl_data = red_data['cli']
-    inputs_data = red_data['inputs']
-    outputs_data = red_data['outputs']
-
-    if not red_version == RED_VERSION:
-        raise RedSpecificationError(
-            'red version "{}" specified in RED_FILE is not compatible with red version "{}" of cc-faice'.format(
-                red_version, RED_VERSION
-            )
-        )
-
-    core_red_validation(cwl_data, inputs_data, outputs_data)
 
 
 def dump_agent_cwl(red_data, stdout_file):

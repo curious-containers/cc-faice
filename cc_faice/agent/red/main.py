@@ -6,8 +6,9 @@ from cc_faice.commons.engines import engine_validation
 
 from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
 from cc_core.commons.exceptions import exception_format
+from cc_core.commons.red import red_validation
 
-from cc_faice.commons.red import parse_and_fill_template, red_validation, jinja_validation
+from cc_faice.commons.red import parse_and_fill_template, jinja_validation
 from cc_faice.commons.docker import DockerManager
 
 
@@ -45,8 +46,8 @@ def attach_args(parser):
         default='yaml', help='Dump format for data written to files or stdout, default is "yaml".'
     )
     parser.add_argument(
-        '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
-        help='Name prefix for files dumped to storage, default is "_dumped".'
+        '--ignore-outputs', action='store_true',
+        help='Ignore RED connectors specified in RED_FILE outputs section.'
     )
 
 
@@ -61,7 +62,16 @@ def main():
     return 0
 
 
-def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interactive, dump_format, dump_prefix):
+def run(
+        red_file,
+        jinja_file,
+        outdir,
+        disable_pull,
+        leave_container,
+        non_interactive,
+        dump_format,
+        ignore_outputs
+):
     result = {
         'container': {
             'command': None,
@@ -85,29 +95,14 @@ def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interac
 
         red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
         red_data = read(red_raw_filled, 'RED_FILE')
-        red_validation(red_data)
+        red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker'], 'faice agent red')
 
         ext = file_extension(dump_format)
         work_dir = 'work'
-        dumped_cwl_file = '{}cli.cwl'.format(dump_prefix)
-        dumped_red_inputs_file = '{}red-inputs.{}'.format(dump_prefix, ext)
-        dumped_red_outputs_file = '{}red-outputs.{}'.format(dump_prefix, ext)
 
         mapped_work_dir = '/opt/cc/work'
-        mapped_cwl_file = '/opt/cc/cli.cwl'
-        mapped_red_inputs_file = '/opt/cc/red-inputs.{}'.format(ext)
-        mapped_red_outputs_file = '/opt/cc/red-outputs.{}'.format(ext)
-
-        ro_mappings = [
-            [os.path.abspath(dumped_cwl_file), mapped_cwl_file],
-            [os.path.abspath(dumped_red_inputs_file), mapped_red_inputs_file],
-            [os.path.abspath(dumped_red_outputs_file), mapped_red_outputs_file]
-        ]
-        rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
-
-        result['container']['volumes']['readOnly'] = ro_mappings
-        result['container']['volumes']['readWrite'] = rw_mappings
+        mapped_red_file = '/opt/cc/red.{}'.format(ext)
 
         container_name = str(uuid4())
         result['container']['name'] = container_name
@@ -118,22 +113,30 @@ def run(red_file, jinja_file, outdir, disable_pull, leave_container, non_interac
         if not disable_pull:
             docker_manager.pull(image, auth=registry_auth)
 
-        command = 'ccagent red {} {} -o {} --dump-format={}'.format(
-            mapped_cwl_file,
-            mapped_red_inputs_file,
-            mapped_red_outputs_file,
+        command = 'ccagent red {} --dump-format={}'.format(
+            mapped_red_file,
             dump_format
         )
+
         if outdir:
             command = '{} --outdir={}'.format(command, outdir)
+
+        if ignore_outputs:
+            command = '{} --ignore-outputs'.format(command)
+
         result['container']['command'] = command
 
-        if not os.path.exists(work_dir):
-            os.makedirs(work_dir)
+        ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
+        rw_mappings = []
 
-        dump(red_data['cli'], dump_format, dumped_cwl_file)
-        dump(red_data['inputs'], dump_format, dumped_red_inputs_file)
-        dump(red_data['outputs'], dump_format, dumped_red_outputs_file)
+        if ignore_outputs or not red_data.get('outputs'):
+            rw_mappings.append([os.path.abspath(work_dir), mapped_work_dir])
+
+            if not os.path.exists(work_dir):
+                os.makedirs(work_dir)
+
+        result['container']['volumes']['readOnly'] = ro_mappings
+        result['container']['volumes']['readWrite'] = rw_mappings
 
         ccagent_data = docker_manager.run_container(
             container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container

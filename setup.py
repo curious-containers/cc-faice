@@ -7,7 +7,7 @@ description = 'FAICE (Fair Collaboration and Experiments) is part of the Curious
 
 setup(
     name='cc-faice',
-    version='2.0.1',
+    version='3.0.0',
     summary=description,
     description=description,
     author='Christoph Jansen',
@@ -32,7 +32,7 @@ setup(
     license='AGPL-3.0',
     platforms=['any'],
     install_requires=[
-        'cc-core >= 2.0, < 2.1',
+        'cc-core >= 3.0, < 3.1',
         'flask',
         'werkzeug',
         'docker',

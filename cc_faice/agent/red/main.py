@@ -127,16 +127,13 @@ def run(
         result['container']['command'] = command
 
         ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
-        rw_mappings = []
-
-        if ignore_outputs or not red_data.get('outputs'):
-            rw_mappings.append([os.path.abspath(work_dir), mapped_work_dir])
-
-            if not os.path.exists(work_dir):
-                os.makedirs(work_dir)
+        rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
 
         result['container']['volumes']['readOnly'] = ro_mappings
         result['container']['volumes']['readWrite'] = rw_mappings
+
+        if not os.path.exists(work_dir):
+            os.makedirs(work_dir)
 
         ccagent_data = docker_manager.run_container(
             container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container

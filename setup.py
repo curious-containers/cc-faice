@@ -21,10 +21,10 @@ setup(
         'cc_faice.commons',
         'cc_faice.export',
         'cc_faice.file_server',
-        'cc_faice.schemas',
-        'cc_faice.schemas.list',
-        'cc_faice.schemas.show',
-        'cc_faice.schemas.validate'
+        'cc_faice.schema',
+        'cc_faice.schema.list',
+        'cc_faice.schema.show',
+        'cc_faice.schema.validate'
     ],
     entry_points={
         'console_scripts': ['faice=cc_faice.main:main']

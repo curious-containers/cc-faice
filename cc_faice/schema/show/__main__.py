@@ -1,4 +1,4 @@
-from cc_faice.schemas.list.main import main
+from cc_faice.schema.show.main import main
 
 
 if __name__ == '__main__':

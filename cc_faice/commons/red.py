@@ -19,44 +19,32 @@ def dump_agent_cwl(red_data, stdout_file):
             }
         },
         'inputs': {
-            'cwl-file': {
+            'red-file': {
                 'type': 'File',
                 'inputBinding': {
                     'position': 0
-                },
-                'doc': ''
-            },
-            'red-inputs-file': {
-                'type': 'File',
-                'inputBinding': {
-                    'position': 1
-                },
-                'doc': ''
-            },
-            'red-outputs-file': {
-                'type': 'File?',
-                'inputBinding': {
-                    'prefix': '--red-outputs-file=',
-                    'separate': False
-                },
-                'doc': ''
+                }
             },
             'outdir': {
                 'type': 'string?',
                 'inputBinding': {
                     'prefix': '--outdir=',
                     'separate': False
-                },
-                'doc': ''
+                }
             },
             'dump-format': {
                 'type': 'string?',
                 'inputBinding': {
                     'prefix': '--dump-format=',
                     'separate': False
-                },
-                'doc': ''
-            }
+                }
+            },
+            'ignore_outputs': {
+                'type': 'boolean?',
+                'inputBinding': {
+                    'prefix': '--ignore-outputs',
+                }
+            },
         },
         'outputs': {
             'standard-out': {
@@ -67,24 +55,21 @@ def dump_agent_cwl(red_data, stdout_file):
     }
 
 
-def dump_agent_job(app_cwl_file, app_red_inputs_file, app_red_outputs_file, outdir, dump_format):
+def dump_agent_job(app_red_file, outdir, dump_format, ignore_outputs):
     agent_job = {
-        'cwl-file': {
+        'red-file': {
             'class': 'File',
-            'path': app_cwl_file
-        },
-        'red-inputs-file': {
-            'class': 'File',
-            'path': app_red_inputs_file
-        },
-        'red-outputs-file': {
-            'class': 'File',
-            'path': app_red_outputs_file
+            'path': app_red_file
         },
         'dump_format': dump_format
     }
+
     if outdir:
         agent_job['outdir'] = outdir
+
+    if ignore_outputs:
+        agent_job['ignore_outputs'] = ignore_outputs
+
     return agent_job
 
 

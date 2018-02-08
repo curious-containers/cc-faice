@@ -1,10 +1,10 @@
 from argparse import ArgumentParser
 
 from cc_core.commons.files import load, read, load_and_read, dump, file_extension, wrapped_print
+from cc_core.commons.red import red_validation
 
 from cc_faice.commons.engines import engine_validation
-from cc_faice.commons.red import parse_and_fill_template, red_validation, jinja_validation
-from cc_faice.commons.red import dump_agent_cwl, dump_agent_job, dump_app_cwl
+from cc_faice.commons.red import parse_and_fill_template, jinja_validation, dump_agent_cwl, dump_agent_job, dump_app_cwl
 from cc_faice.commons.docker import dump_job
 
 
@@ -37,6 +37,10 @@ def attach_args(parser):
         '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
         help='Name prefix for files dumped to storage, default is "_dumped".'
     )
+    parser.add_argument(
+        '--ignore-outputs', action='store_true',
+        help='Ignore RED connectors specified in RED_FILE outputs section.'
+    )
 
 
 def main():
@@ -47,7 +51,7 @@ def main():
     return 0
 
 
-def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix):
+def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix, ignore_outputs):
     red_raw = load(red_file, 'RED_FILE')
 
     jinja_data = None
@@ -57,7 +61,7 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
 
     red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
     red_data = read(red_raw_filled, 'RED_FILE')
-    red_validation(red_data)
+    red_validation(red_data, False, container_requirement=True)
     engine_validation(red_data, 'container', ['docker'], 'faice export')
     if red_data['container']['settings']['image'].get('auth'):
         wrapped_print([
@@ -67,8 +71,7 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
 
     ext = file_extension(dump_format)
     dumped_app_cwl_file = '{}app-cli.cwl'.format(dump_prefix)
-    dumped_app_red_inputs_file = '{}app-red-inputs.{}'.format(dump_prefix, ext)
-    dumped_app_red_outputs_file = '{}app-red-outputs.{}'.format(dump_prefix, ext)
+    dumped_app_red_file = '{}app-red.{}'.format(dump_prefix, ext)
     dumped_app_job_file = '{}app-job.{}'.format(dump_prefix, ext)
     dumped_agent_cwl_file = '{}agent-cli.cwl'.format(dump_prefix)
     dumped_agent_job_file = '{}agent-job.{}'.format(dump_prefix, ext)
@@ -77,17 +80,15 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
     dumped_app_job_data = dump_job(red_data['inputs'], '.')
     dumped_agent_cwl_data = dump_agent_cwl(red_data, agent_stdout_file)
     dumped_agent_job_data = dump_agent_job(
-        dumped_app_cwl_file,
-        dumped_app_red_inputs_file,
-        dumped_app_red_outputs_file,
+        dumped_app_red_file,
         outdir,
-        dump_format
+        dump_format,
+        ignore_outputs
     )
     dumped_app_cwl_data = dump_app_cwl(red_data)
 
     dump(dumped_app_cwl_data, dump_format, dumped_app_cwl_file)
-    dump(red_data['inputs'], dump_format, dumped_app_red_inputs_file)
-    dump(red_data['outputs'], dump_format, dumped_app_red_outputs_file)
+    dump(red_data, dump_format, dumped_app_red_file)
     dump(dumped_app_job_data, dump_format, dumped_app_job_file)
     dump(dumped_agent_cwl_data, dump_format, dumped_agent_cwl_file)
     dump(dumped_agent_job_data, dump_format, dumped_agent_job_file)

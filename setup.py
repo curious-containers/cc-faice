@@ -7,7 +7,7 @@ description = 'FAICE (Fair Collaboration and Experiments) is part of the Curious
 
 setup(
     name='cc-faice',
-    version='3.0.0',
+    version='3.0.1',
     summary=description,
     description=description,
     author='Christoph Jansen',

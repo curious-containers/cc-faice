@@ -50,6 +50,12 @@ def dump_agent_cwl(red_data, stdout_file):
                     'prefix': '--ignore-outputs',
                 }
             },
+            'return_zero': {
+                'type': 'boolean?',
+                'inputBinding': {
+                    'prefix': '--return-zero',
+                }
+            }
         },
         'outputs': outputs,
         'stdout': stdout_file

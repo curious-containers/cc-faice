@@ -9,7 +9,7 @@ from cc_core.commons.exceptions import exception_format
 from cc_core.commons.red import red_validation
 
 from cc_faice.commons.red import parse_and_fill_template, jinja_validation
-from cc_faice.commons.docker import DockerManager
+from cc_faice.commons.docker import DockerManager, docker_result_check
 
 
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
@@ -59,7 +59,10 @@ def main():
     result = run(**args.__dict__)
     dump_print(result, args.dump_format)
 
-    return 0
+    if result['state'] == 'succeeded':
+        return 0
+
+    return 1
 
 
 def run(
@@ -82,7 +85,8 @@ def run(
             },
             'ccagent': None
         },
-        'debugInfo': None
+        'debugInfo': None,
+        'state': 'succeeded'
     }
 
     try:
@@ -113,16 +117,23 @@ def run(
         if not disable_pull:
             docker_manager.pull(image, auth=registry_auth)
 
-        command = 'ccagent red {} --dump-format={}'.format(
+        command = [
+            'ccagent',
+            'red',
             mapped_red_file,
-            dump_format
-        )
+            '--return-zero',
+            '--dump-format={}'.format(dump_format)
+        ]
 
         if outdir:
-            command = '{} --outdir={}'.format(command, outdir)
+            command += [
+                '--outdir={}'.format(outdir)
+            ]
 
         if ignore_outputs:
-            command = '{} --ignore-outputs'.format(command)
+            command += [
+                '--ignore-outputs'
+            ]
 
         result['container']['command'] = command
 
@@ -139,7 +150,9 @@ def run(
             container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
         )
         result['container']['ccagent'] = ccagent_data
+        docker_result_check(ccagent_data)
     except:
         result['debugInfo'] = exception_format()
+        result['state'] = 'failed'
 
     return result

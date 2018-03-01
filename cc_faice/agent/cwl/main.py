@@ -6,7 +6,7 @@ from cc_core.commons.files import load_and_read, dump, dump_print, file_extensio
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format
 
-from cc_faice.commons.docker import dump_job, input_volume_mappings, DockerManager
+from cc_faice.commons.docker import dump_job, input_volume_mappings, DockerManager, docker_result_check
 
 
 DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its corresponding JOB_FILE in a container with ' \
@@ -52,7 +52,10 @@ def main():
     result = run(**args.__dict__)
     dump_print(result, args.dump_format)
 
-    return 0
+    if result['state'] == 'succeeded':
+        return 0
+
+    return 1
 
 
 def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, dump_prefix):
@@ -66,7 +69,8 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, 
             },
             'ccagent': None
         },
-        'debugInfo': None
+        'debugInfo': None,
+        'state': 'succeeded'
     }
 
     try:
@@ -105,9 +109,20 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, 
         if not disable_pull:
             docker_manager.pull(image)
 
-        command = 'ccagent cwl {} {} --dump-format={}'.format(mapped_cwl_file, mapped_job_file, dump_format)
+        command = [
+            'ccagent',
+            'cwl',
+            mapped_cwl_file,
+            mapped_job_file,
+            '--return-zero',
+            '--dump-format={}'.format(dump_format)
+        ]
+
         if outdir:
-            command = '{} --outdir={}'.format(command, outdir)
+            command += [
+                '--outdir={}'.format(outdir)
+            ]
+
         result['container']['command'] = command
 
         if not os.path.exists(work_dir):
@@ -119,7 +134,9 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, 
             container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
         )
         result['container']['ccagent'] = ccagent_data
+        docker_result_check(ccagent_data)
     except:
         result['debugInfo'] = exception_format()
+        result['state'] = 'failed'
 
     return result

@@ -9,6 +9,11 @@ from cc_core.commons.exceptions import RedSpecificationError
 
 
 def dump_agent_cwl(red_data, stdout_file):
+    outputs = deepcopy(red_data['cli']['outputs'])
+    outputs['standard-out'] = {
+        'type': 'stdout'
+    }
+
     return {
         'cwlVersion': 'v1.0',
         'class': 'CommandLineTool',
@@ -46,12 +51,14 @@ def dump_agent_cwl(red_data, stdout_file):
                     'prefix': '--ignore-outputs',
                 }
             },
-        },
-        'outputs': {
-            'standard-out': {
-                'type': 'stdout'
+            'return_zero': {
+                'type': 'boolean?',
+                'inputBinding': {
+                    'prefix': '--return-zero',
+                }
             }
         },
+        'outputs': outputs,
         'stdout': stdout_file
     }
 

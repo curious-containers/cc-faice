@@ -3,6 +3,12 @@ import docker
 
 from cc_core.commons.cwl import location
 from cc_core.commons.files import read
+from cc_core.commons.exceptions import AgentError
+
+
+def docker_result_check(ccagent_data):
+    if ccagent_data['state'] != 'succeeded':
+        raise AgentError('ccagent did not succeed')
 
 
 def dump_job(job_data, mapped_input_dir):
@@ -67,7 +73,7 @@ class DockerManager:
 
         std_out = self._client.containers.run(
             image,
-            command,
+            ' '.join(command),
             volumes=binds,
             name=name,
             user='1000:1000',

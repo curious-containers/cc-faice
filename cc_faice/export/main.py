@@ -37,10 +37,6 @@ def attach_args(parser):
         '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
         help='Name prefix for files dumped to storage, default is "_dumped".'
     )
-    parser.add_argument(
-        '--ignore-outputs', action='store_true',
-        help='Ignore RED connectors specified in RED_FILE outputs section.'
-    )
 
 
 def main():
@@ -51,7 +47,7 @@ def main():
     return 0
 
 
-def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix, ignore_outputs):
+def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix):
     red_raw = load(red_file, 'RED_FILE')
 
     jinja_data = None
@@ -75,16 +71,13 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix,
     dumped_app_job_file = '{}app-job.{}'.format(dump_prefix, ext)
     dumped_agent_cwl_file = '{}agent-cli.cwl'.format(dump_prefix)
     dumped_agent_job_file = '{}agent-job.{}'.format(dump_prefix, ext)
+    dumped_agent_job_ignore_output_file = '{}agent-job-ignore-output.{}'.format(dump_prefix, ext)
     agent_stdout_file = 'agent-stdout.{}'.format(ext)
 
     dumped_app_job_data = dump_job(red_data['inputs'], '.')
     dumped_agent_cwl_data = dump_agent_cwl(red_data, agent_stdout_file)
-    dumped_agent_job_data = dump_agent_job(
-        dumped_app_red_file,
-        outdir,
-        dump_format,
-        ignore_outputs
-    )
+    dumped_agent_job_data = dump_agent_job(dumped_app_red_file, outdir, dump_format, False)
+    dumped_agent_job_ignore_output_data = dump_agent_job(dumped_app_red_file, outdir, dump_format, True)
     dumped_app_cwl_data = dump_app_cwl(red_data)
 
     dump(dumped_app_cwl_data, dump_format, dumped_app_cwl_file)
@@ -92,6 +85,7 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix,
     dump(dumped_app_job_data, dump_format, dumped_app_job_file)
     dump(dumped_agent_cwl_data, dump_format, dumped_agent_cwl_file)
     dump(dumped_agent_job_data, dump_format, dumped_agent_job_file)
+    dump(dumped_agent_job_ignore_output_data, dump_format, dumped_agent_job_ignore_output_file)
 
     option2_command = 'cwltool {} {}'.format(dumped_app_cwl_file, dumped_app_job_file)
     if outdir:
@@ -99,11 +93,18 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix,
 
     wrapped_print([
         'OPTION 1:',
-        'Use cwltool to execute app in container via "ccagent red" with support for RED inputs and outputs.',
+        'Use cwltool to execute app in container via "ccagent red" with support for REMOTE inputs and REMOTE outputs.',
         '$ cwltool {} {}'.format(dumped_agent_cwl_file, dumped_agent_job_file),
         '',
         'OPTION 2:',
-        'Use cwltool to execute app in container with support for local input and output files '
-        '(modify input file paths in {} first).'.format(dumped_app_job_file),
-        '$ {}'.format(option2_command)
+        'Use cwltool to execute app in container via "ccagent red" with support for REMOTE inputs and LOCAL outputs.',
+        '$ cwltool {} {}'.format(dumped_agent_cwl_file, dumped_agent_job_ignore_output_file),
+        '',
+        'OPTION 3:',
+        'Use cwltool to execute app in container with support for LOCAL inputs and LOCAL outputs.',
+        'ATTENTION: adjust input file paths in {}.'.format(dumped_app_job_file),
+        '$ {}'.format(option2_command),
+        '',
+        'OPTION 4:',
+        'Customize exported CWL and JOB files.'
     ])

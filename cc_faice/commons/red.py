@@ -1,6 +1,7 @@
 import jsonschema
 from copy import deepcopy
 from jinja2 import Template, Environment, meta
+from getpass import getpass
 
 from cc_core.commons.files import wrapped_print
 from cc_core.commons.schemas.red import red_jinja_schema
@@ -113,7 +114,7 @@ def parse_and_fill_template(template, jinja_data, non_interactive):
             wrapped_print(out)
 
             for v in remaining_template_variables:
-                template_values[v] = input('{}: '.format(v))
+                template_values[v] = getpass('{}: '.format(v))
 
         for v in template_variables:
             if not template_values.get(v):

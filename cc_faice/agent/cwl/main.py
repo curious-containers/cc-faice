@@ -40,7 +40,7 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
-        help='Name prefix for files dumped to storage, default is "_dumped".'
+        help='Name prefix for files dumped to storage, default is "dumped_".'
     )
 
 

@@ -1,11 +1,4 @@
-import jsonschema
 from copy import deepcopy
-from jinja2 import Template, Environment, meta
-from getpass import getpass
-
-from cc_core.commons.files import wrapped_print
-from cc_core.commons.schemas.red import red_jinja_schema
-from cc_core.commons.exceptions import RedSpecificationError
 
 
 def dump_agent_cwl(red_data, stdout_file):
@@ -89,52 +82,3 @@ def dump_app_cwl(red_data):
         }
     }
     return app_cwl
-
-
-def jinja_validation(jinja_data):
-    try:
-        jsonschema.validate(jinja_data, red_jinja_schema)
-    except:
-        raise RedSpecificationError('jinja file does not comply with jsonschema')
-
-
-def parse_and_fill_template(template, jinja_data, non_interactive):
-    template_values = {}
-    if jinja_data:
-        template_values = deepcopy(jinja_data)
-    filled_template = template
-    template_variables = _template_variables(template)
-
-    if template_variables:
-        remaining_template_variables = [v for v in template_variables if v not in template_values]
-
-        if remaining_template_variables and not non_interactive:
-            out = [
-                '{} contains the following undeclared variables:'.format('RED_FILE')
-            ]
-            out += remaining_template_variables
-            out += [
-                '',
-                'Set variables interactively...',
-                ''
-            ]
-            wrapped_print(out)
-
-            for v in remaining_template_variables:
-                template_values[v] = getpass('{}: '.format(v))
-
-        for v in template_variables:
-            if not template_values.get(v):
-                template_values[v] = 'null'
-        t = Template(template)
-        filled_template = t.render(template_values)
-
-    return filled_template
-
-
-def _template_variables(template):
-    environment = Environment()
-    ast = environment.parse(template)
-    variables = list(meta.find_undeclared_variables(ast))
-    variables.sort(reverse=True)
-    return variables

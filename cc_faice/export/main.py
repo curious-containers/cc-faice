@@ -2,9 +2,10 @@ from argparse import ArgumentParser
 
 from cc_core.commons.files import load, read, load_and_read, dump, file_extension, wrapped_print
 from cc_core.commons.red import red_validation
+from cc_core.commons.jinja import template_values, fill_template, jinja_validation
 
 from cc_faice.commons.engines import engine_validation
-from cc_faice.commons.red import parse_and_fill_template, jinja_validation, dump_agent_cwl, dump_agent_job, dump_app_cwl
+from cc_faice.commons.red import dump_agent_cwl, dump_agent_job, dump_app_cwl
 from cc_faice.commons.docker import dump_job
 
 
@@ -55,7 +56,8 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
         jinja_data = load_and_read(jinja_file, 'JINJA_FILE')
         jinja_validation(jinja_data)
 
-    red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
+    template_vals = template_values(red_raw, jinja_data, non_interactive=non_interactive)
+    red_raw_filled = fill_template(red_raw, template_vals)
     red_data = read(red_raw_filled, 'RED_FILE')
     red_validation(red_data, False, container_requirement=True)
     engine_validation(red_data, 'container', ['docker'], 'faice export')

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-from distutils.core import setup
+from setuptools import setup
 
 description = 'FAICE (Fair Collaboration and Experiments) is part of the Curious Containers project and enables' \
               'researchers to perform and distribute reproducible data-driven experiments.'
 
 setup(
     name='cc-faice',
-    version='3.1.0',
+    version='3.2.0',
     summary=description,
     description=description,
     author='Christoph Jansen',
@@ -32,11 +32,10 @@ setup(
     license='AGPL-3.0',
     platforms=['any'],
     install_requires=[
-        'cc-core >= 3.1, < 3.2',
+        'cc-core >= 3.2, < 3.3',
         'flask',
         'werkzeug',
         'docker',
-        'Jinja2',
         'jsonschema'
     ]
 )

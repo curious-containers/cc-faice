@@ -2,13 +2,12 @@ import os
 from uuid import uuid4
 from argparse import ArgumentParser
 
-from cc_faice.commons.engines import engine_validation
-
 from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
-from cc_core.commons.exceptions import exception_format
+from cc_core.commons.exceptions import exception_format, RedSpecificationError
 from cc_core.commons.red import red_validation
+from cc_core.commons.jinja import jinja_validation, fill_template, template_values
 
-from cc_faice.commons.red import parse_and_fill_template, jinja_validation
+from cc_faice.commons.engines import engine_validation
 from cc_faice.commons.docker import DockerManager, docker_result_check
 
 
@@ -46,6 +45,10 @@ def attach_args(parser):
         default='yaml', help='Dump format for data written to files or stdout, default is "yaml".'
     )
     parser.add_argument(
+        '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
+        help='Name prefix for files dumped to storage, default is "dumped_".'
+    )
+    parser.add_argument(
         '--ignore-outputs', action='store_true',
         help='Ignore RED connectors specified in RED_FILE outputs section.'
     )
@@ -73,6 +76,7 @@ def run(
         leave_container,
         non_interactive,
         dump_format,
+        dump_prefix,
         ignore_outputs
 ):
     result = {
@@ -89,6 +93,10 @@ def run(
         'state': 'succeeded'
     }
 
+    template_vals = None
+    ext = file_extension(dump_format)
+    dumped_jinja_file = '{}jinja.{}'.format(dump_prefix, ext)
+
     try:
         red_raw = load(red_file, 'RED_FILE')
 
@@ -97,16 +105,17 @@ def run(
             jinja_data = load_and_read(jinja_file, 'JINJA_FILE')
             jinja_validation(jinja_data)
 
-        red_raw_filled = parse_and_fill_template(red_raw, jinja_data, non_interactive)
+        template_vals = template_values(red_raw, jinja_data, non_interactive=non_interactive)
+        red_raw_filled = fill_template(red_raw, template_vals)
         red_data = read(red_raw_filled, 'RED_FILE')
         red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker'], 'faice agent red')
 
-        ext = file_extension(dump_format)
         work_dir = 'work'
 
         mapped_work_dir = '/opt/cc/work'
         mapped_red_file = '/opt/cc/red.{}'.format(ext)
+        mapped_jinja_file = '/opt/cc/jinja.{}'.format(ext)
 
         container_name = str(uuid4())
         result['container']['name'] = container_name
@@ -114,6 +123,7 @@ def run(
 
         image = red_data['container']['settings']['image']['url']
         registry_auth = red_data['container']['settings']['image'].get('auth')
+
         if not disable_pull:
             docker_manager.pull(image, auth=registry_auth)
 
@@ -135,10 +145,20 @@ def run(
                 '--ignore-outputs'
             ]
 
+        if template_vals:
+            command += [
+                '--jinja-file={}'.format(mapped_jinja_file),
+                '--destroy-jinja-file'
+            ]
+
         result['container']['command'] = command
 
         ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
         rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
+
+        if template_vals:
+            rw_mappings.append([os.path.abspath(dumped_jinja_file), mapped_jinja_file])
+            dump(template_vals, dump_format, dumped_jinja_file)
 
         result['container']['volumes']['readOnly'] = ro_mappings
         result['container']['volumes']['readWrite'] = rw_mappings
@@ -151,8 +171,14 @@ def run(
         )
         result['container']['ccagent'] = ccagent_data
         docker_result_check(ccagent_data)
+    except RedSpecificationError:
+        result['debugInfo'] = exception_format(template_vals=template_vals)
+        result['state'] = 'failed'
     except:
         result['debugInfo'] = exception_format()
         result['state'] = 'failed'
+    finally:
+        if os.path.exists(dumped_jinja_file):
+            os.remove(dumped_jinja_file)
 
     return result

@@ -123,6 +123,8 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, 
                 '--outdir={}'.format(outdir)
             ]
 
+        command = ' '.join([str(c) for c in command])
+
         result['container']['command'] = command
 
         if not os.path.exists(work_dir):

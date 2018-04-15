@@ -73,7 +73,7 @@ class DockerManager:
 
         std_out = self._client.containers.run(
             image,
-            ' '.join(command),
+            command,
             volumes=binds,
             name=name,
             user='1000:1000',

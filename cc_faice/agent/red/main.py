@@ -151,6 +151,8 @@ def run(
                 '--destroy-jinja-file'
             ]
 
+        command = ' '.join([str(c) for c in command])
+
         result['container']['command'] = command
 
         ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]

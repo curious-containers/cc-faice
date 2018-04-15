@@ -3,7 +3,7 @@ from uuid import uuid4
 from argparse import ArgumentParser
 
 from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
-from cc_core.commons.exceptions import exception_format, RedSpecificationError
+from cc_core.commons.exceptions import exception_format, RedValidationError
 from cc_core.commons.red import red_validation
 from cc_core.commons.jinja import jinja_validation, fill_template, template_values
 
@@ -173,7 +173,7 @@ def run(
         )
         result['container']['ccagent'] = ccagent_data
         docker_result_check(ccagent_data)
-    except RedSpecificationError:
+    except RedValidationError:
         result['debugInfo'] = exception_format(template_vals=template_vals)
         result['state'] = 'failed'
     except:

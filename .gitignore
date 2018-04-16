@@ -1,5 +1,6 @@
-.idea
-MANIFEST
-dist
+/.idea
+/MANIFEST
+/dist
+/venv
 __pycache__
-venv
+*.egg-info

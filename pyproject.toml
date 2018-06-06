@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cc-faice"
-version = "4.0.1"
+version = "4.0.2"
 authors = ["Christoph Jansen <Christoph.Jansen@htw-berlin.de>"]
 license = "AGPL-3.0"
 readme = "README.md"
@@ -9,11 +9,11 @@ homepage = "https://curious-containers.github.io/"
 description = "FAICE (Fair Collaboration and Experiments) is part of the Curious Containers project and enables researchers to perform and distribute reproducible data-driven experiments defined in RED or CWL format."
 
 [tool.poetry.dependencies]
-cc-core = "~4.0"
 python = "^3.4"
+cc-core = "~4.0"
 flask = "^1.0"
 jsonschema = "^2.6"
-docker = "^3.2"
+docker = "^2.7"
 
 [tool.poetry.dev-dependencies]
 

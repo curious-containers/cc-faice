@@ -10,6 +10,22 @@ platform = "UNKNOWN"
 [package.requirements]
 python = "<3.5"
 [[package]]
+name = "cc-core"
+version = "4.0.0"
+description = "CC-Core is part of the Curious Containers project. It provides common functionality for other parts of Curious Containers and implements agents to run data-driven experiments defined in RED or CWL format."
+category = "main"
+optional = false
+python-versions = ">=3.4,<4.0"
+platform = "*"
+
+[package.dependencies]
+"ruamel.yaml" = ">=0.14,<0.16"
+jinja2 = ">=2.10,<3.0"
+psutil = ">=5.4,<6.0"
+jsonschema = ">=2.6,<3.0"
+requests = ">=2.18,<3.0"
+flask = ">=1.0,<2.0"
+[[package]]
 name = "certifi"
 version = "2018.4.16"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -124,6 +140,15 @@ python-versions = "*"
 platform = "UNKNOWN"
 
 [[package]]
+name = "psutil"
+version = "5.4.5"
+description = "Cross-platform lib for process and system monitoring in Python."
+category = "main"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+platform = "Platform Independent"
+
+[[package]]
 name = "requests"
 version = "2.18.4"
 description = "Python HTTP for Humans."
@@ -137,6 +162,15 @@ certifi = ">=2017.4.17"
 chardet = ">=3.0.2,<3.1.0"
 idna = ">=2.5,<2.7"
 urllib3 = ">=1.21.1,<1.23"
+[[package]]
+name = "ruamel.yaml"
+version = "0.15.37"
+description = "ruamel.yaml is a YAML parser/emitter that supports roundtrip preservation of comments, seq/map flow style, and map key order"
+category = "main"
+optional = false
+python-versions = "*"
+platform = "*"
+
 [[package]]
 name = "six"
 version = "1.11.0"
@@ -178,10 +212,11 @@ platform = "any"
 [metadata]
 python-versions = "^3.4"
 platform = "*"
-content-hash = "c2e4e9715863acf5c66327172ae593a8409ca9faca5bd1c22f9a330a65b6eabc"
+content-hash = "1a231b4306192e504b1dc4af23e5778d3478f933a36a6bccf865c72a84e16b65"
 
 [metadata.hashes]
 "backports.ssl-match-hostname" = [ "502ad98707319f4a51fa2ca1c677bd659008d27ded9f6380c79e8932e38dcdf2",]
+cc-core = [ "649a4398b129b5267ecac06538af4056f885000beab3b8373401e3d5729a9bea", "f8e22b15622e2b7049629cc4483d4f10abcb46f1c164c19c0e5d8a7fa883a954",]
 certifi = [ "9fa520c1bacfb634fa7af20a76bcbd3d5fb390481724c597da32c719a7dca4b0", "13e698f54293db9f89122b0581843a782ad0934a4fe0172d2a980ba77fc61bb7",]
 chardet = [ "fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691", "84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae",]
 click = [ "29f99fc6125fbc931b758dc053b3114e55c77a6e4c6c3a2674a2dc986016381d", "f15516df478d5a56180fbf80e68f206010e6d160fc39fa508b65e035fd75130b",]
@@ -193,7 +228,9 @@ itsdangerous = [ "cbb3fcf8d3e33df861709ecaf89d9e6629cff0a217bc2848f1b41cd30d3605
 jinja2 = [ "74c935a1b8bb9a3947c50a54766a969d4846290e1e788ea44c1392163723c3bd", "f84be1bb0040caca4cea721fcbbbbd61f9be9464ca236387158b0feea01914a4",]
 jsonschema = [ "000e68abd33c972a5248544925a0cae7d1125f9bf6c58280d37546b946769a08", "6ff5f3180870836cae40f06fa10419f557208175f13ad7bc26caa77beb1f6e02",]
 markupsafe = [ "a6be69091dac236ea9c6bc7d012beab42010fa914c459791d627dad4910eb665",]
+psutil = [ "33384065f0014351fa70187548e3e95952c4df4bc5c38648bd0e647d21eaaf01", "f24cd52bafa06917935fe1b68c5a45593abe1f3097dc35b2dfc4718236795890", "99029b6af386b22882f0b6d537ffed5a9c3d5ff31782974aeaa1d683262d8543", "51e12aa74509832443862373a2655052b20c83cad7322f49d217452500b9a405", "325c334596ad2d8a178d0e7b4eecc91748096a87489b3701ee16986173000aaa", "52a91ba928a5e86e0249b4932d6e36972a72d1ad8dcc5b7f753a2ae14825a4ba", "b10703a109cc9225cd588c207f7f93480a420ade35c13515ea8f20063b42a392", "ddba952ed256151844d82fb13c8fb1019fe11ecaeacbd659d67ba5661ae73d0d", "ebe293be36bb24b95cdefc5131635496e88b17fabbcf1e4bc9b5c01f5e489cfe",]
 requests = [ "6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b", "9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e",]
+"ruamel.yaml" = [ "e4d53f6a0c21d8effc23371927e8569096d0364d7c703b2e6956c6281b6bde2c", "4b1929101d09612e0c7a42fbe06b0f929a4a89e1d14832353c1eb073580d3ba6", "181699cc08b157ef8a59a77e96a01b5ffa150044ed4e49fd98428ab9ac0e6ed9", "b6bc5f434d72a672dbe48471e70771789d5d93603716c9e36963fe1dc7a35718", "6932e1ad63c805a41665a94e5d7b70808e9e25943f72afba6d327fede2aeb43d", "dc051cd1fe541e321f6846bddba8e2c0de8ca409d51a6d9917c7b970d8d89a3d", "656dcd3d30774ffe252e46db96f4cf24b284d42c904b93f9cbe6b234028f7d2e", "039bb5b50a2f3b17c969ed1d381e050bca851e3c13fe8c2a9ad18f605ca111a5", "f5ef82b8efe378de6abb7042263d6f407b0760ad923ed477fa26007b1fa0e563", "cea830caa479ae083f51ffdb55fe430a2763e853a7b06195f203db6d28bf5264", "882cacb8af5f7009780da75041ef131d0ec80d9e0b81d3cf8d4b49a0a33fe6ef", "1d46053cb7acf0cd6b375e34abfb94f2e97c39269c17eb8b0226fe8a470c4ced", "2d1df676ac75fb5e0af7b91f7718a4b4f469a5d8ac4150edecc61f063283bbee", "759b485e8cda260bd87b7cdd2ad936a0ec359ee6154a9d856357446792b3faf5", "7afefe5dab4381393a2aa7ccb585ffd6080d52e7cd05f1df3788e9d0e4dfcea9", "766ee90985c667f77bf34950b1d945624c263ecb82d859961f78effb3355c946", "509842d96fb194f79b57483b76429f8956d8f7ade3cb49d1e5aeb5c5e9ef4918",]
 six = [ "832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb", "70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9",]
 urllib3 = [ "06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b", "cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f",]
 websocket-client = [ "db70953ae4a064698b27ae56dcad84d0ee68b7b43cb40940f537738f38f510c1", "18f1170e6a1b5463986739d9fd45c4308b0d025c1b2f9b88788d8f69e8a5eb4a",]

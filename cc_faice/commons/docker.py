@@ -14,16 +14,27 @@ def docker_result_check(ccagent_data):
 def dump_job(job_data, mapped_input_dir):
     job = {}
 
-    for key, val in job_data.items():
-        if not isinstance(val, dict):
-            job[key] = val
-            continue
+    for key, arg in job_data.items():
+        val = arg
+        if isinstance(arg, list):
+            val = []
+            for index, i in enumerate(arg):
+                if isinstance(i, dict):
+                    path = os.path.join(mapped_input_dir, '{}_{}'.format(key, index))
+                    val.append({
+                        'class': 'File',
+                        'path': path
+                    })
+                else:
+                    val.append(i)
+        elif isinstance(arg, dict):
+            path = os.path.join(mapped_input_dir, key)
+            val = {
+                'class': 'File',
+                'path': path
+            }
 
-        path = os.path.join(mapped_input_dir, key)
-        job[key] = {
-            'class': 'File',
-            'path': path
-        }
+        job[key] = val
 
     return job
 

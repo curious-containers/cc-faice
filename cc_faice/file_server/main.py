@@ -4,8 +4,8 @@ from flask import Flask, send_from_directory, request
 from werkzeug.utils import secure_filename
 
 
-DESCRIPTION = 'Run a simple http file server for debugging purposes. USE CAREFULLY: this server implementation does ' \
-              'not authorize requests.'
+DESCRIPTION = 'Run a simple http file server for debugging purposes. USE CAREFULLY: this server does not enable ' \
+              'encryption and does not verify authorization credentials.'
 
 
 def attach_args(parser):

@@ -45,8 +45,7 @@ def main():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()
-    run(**args.__dict__)
-    return 0
+    return run(**args.__dict__)
 
 
 def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix):
@@ -67,6 +66,14 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
             'WARNING: cannot export container.settings.image.auth to cwl.',
             ''
         ], error=True)
+
+    if 'batches' in red_data:
+        wrapped_print([
+            'ERROR: cannot export RED_FILE containing batches.',
+            'Use "faice convert batches" to separate batches into individual files, then use "faice export" on the '
+            'generated files.',
+        ], error=True)
+        return 1
 
     ext = file_extension(dump_format)
     dumped_app_cwl_file = '{}app-cli.cwl'.format(dump_prefix)
@@ -111,3 +118,5 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
         'OPTION 4:',
         'Customize exported CWL and JOB files.'
     ])
+
+    return 0

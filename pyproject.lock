@@ -11,7 +11,7 @@ platform = "UNKNOWN"
 python = "<3.5"
 [[package]]
 name = "cc-core"
-version = "4.0.0"
+version = "5.0.0"
 description = "CC-Core is part of the Curious Containers project. It provides common functionality for other parts of Curious Containers and implements agents to run data-driven experiments defined in RED or CWL format."
 category = "main"
 optional = false
@@ -69,7 +69,7 @@ docker-pycreds = ">=0.2.1"
 "backports.ssl_match_hostname" = ">=3.5"
 [[package]]
 name = "docker-pycreds"
-version = "0.2.3"
+version = "0.3.0"
 description = "Python bindings for the docker credentials store API"
 category = "main"
 optional = false
@@ -94,7 +94,7 @@ Jinja2 = ">=2.10"
 Werkzeug = ">=0.14"
 [[package]]
 name = "idna"
-version = "2.6"
+version = "2.7"
 description = "Internationalized Domain Names in Applications (IDNA)"
 category = "main"
 optional = false
@@ -141,7 +141,7 @@ platform = "UNKNOWN"
 
 [[package]]
 name = "psutil"
-version = "5.4.5"
+version = "5.4.6"
 description = "Cross-platform lib for process and system monitoring in Python."
 category = "main"
 optional = false
@@ -150,21 +150,21 @@ platform = "Platform Independent"
 
 [[package]]
 name = "requests"
-version = "2.18.4"
+version = "2.19.1"
 description = "Python HTTP for Humans."
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 platform = "*"
 
 [package.dependencies]
 certifi = ">=2017.4.17"
+urllib3 = ">=1.21.1,<1.24"
+idna = ">=2.5,<2.8"
 chardet = ">=3.0.2,<3.1.0"
-idna = ">=2.5,<2.7"
-urllib3 = ">=1.21.1,<1.23"
 [[package]]
 name = "ruamel.yaml"
-version = "0.15.37"
+version = "0.15.40"
 description = "ruamel.yaml is a YAML parser/emitter that supports roundtrip preservation of comments, seq/map flow style, and map key order"
 category = "main"
 optional = false
@@ -182,11 +182,11 @@ platform = "*"
 
 [[package]]
 name = "urllib3"
-version = "1.22"
+version = "1.23"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4"
 platform = "*"
 
 [[package]]
@@ -212,26 +212,26 @@ platform = "any"
 [metadata]
 python-versions = "^3.4"
 platform = "*"
-content-hash = "1a231b4306192e504b1dc4af23e5778d3478f933a36a6bccf865c72a84e16b65"
+content-hash = "491b312de51493cc6b6d683815cca83a62eccd0ac079b339ecdc5daaf5dc5fa7"
 
 [metadata.hashes]
 "backports.ssl-match-hostname" = [ "502ad98707319f4a51fa2ca1c677bd659008d27ded9f6380c79e8932e38dcdf2",]
-cc-core = [ "649a4398b129b5267ecac06538af4056f885000beab3b8373401e3d5729a9bea", "f8e22b15622e2b7049629cc4483d4f10abcb46f1c164c19c0e5d8a7fa883a954",]
+cc-core = [ "c3904c72eaa47eba671fa06dc76f07e1388480154d12f2434b5af2e6acd38ee7", "3f20fa1a243c42d2b0ad495dc8d6c3a92c75ea844e56f573e662072469827579",]
 certifi = [ "9fa520c1bacfb634fa7af20a76bcbd3d5fb390481724c597da32c719a7dca4b0", "13e698f54293db9f89122b0581843a782ad0934a4fe0172d2a980ba77fc61bb7",]
 chardet = [ "fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691", "84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae",]
 click = [ "29f99fc6125fbc931b758dc053b3114e55c77a6e4c6c3a2674a2dc986016381d", "f15516df478d5a56180fbf80e68f206010e6d160fc39fa508b65e035fd75130b",]
 docker = [ "c1d4e37b1ea03b2b6efdd0379640f6ea372fefe56efa65d4d17c34c6b9d54558", "144248308e8ea31c4863c6d74e1b55daf97cc190b61d0fe7b7313ab920d6a76c",]
-docker-pycreds = [ "764a7ea2f6484bc5de5bf0c060f08b41a1118cf1acb987626b3ff45f3cc40dac", "e3732a03610a00461a716997670c7010bf1c214a3edc440f7d6a2a3a830ecd9d",]
+docker-pycreds = [ "0a941b290764ea7286bd77f54c0ace43b86a8acd6eb9ead3de9840af52384079", "8b0e956c8d206f832b06aa93a710ba2c3bcbacb5a314449c040b0b814355bbff",]
 flask = [ "a080b744b7e345ccfcbc77954861cb05b3c63786e93f2b3875e0913d44b43f05", "2271c0070dbcb5275fad4a82e29f23ab92682dc45f9dfbc22c02ba9b9322ce48",]
-idna = [ "8c7309c718f94b3a625cb648ace320157ad16ff131ae0af362c9f21b80ef6ec4", "2c6a5de3089009e3da7c5dde64a141dbc8551d5b7f6cf4ed7c2568d0cc520a8f",]
+idna = [ "156a6814fb5ac1fc6850fb002e0852d56c0c8d2531923a51032d1b70760e186e", "684a38a6f903c1d71d6d5fac066b58d7768af4de2b832e426ec79c30daa94a16",]
 itsdangerous = [ "cbb3fcf8d3e33df861709ecaf89d9e6629cff0a217bc2848f1b41cd30d360519",]
 jinja2 = [ "74c935a1b8bb9a3947c50a54766a969d4846290e1e788ea44c1392163723c3bd", "f84be1bb0040caca4cea721fcbbbbd61f9be9464ca236387158b0feea01914a4",]
 jsonschema = [ "000e68abd33c972a5248544925a0cae7d1125f9bf6c58280d37546b946769a08", "6ff5f3180870836cae40f06fa10419f557208175f13ad7bc26caa77beb1f6e02",]
 markupsafe = [ "a6be69091dac236ea9c6bc7d012beab42010fa914c459791d627dad4910eb665",]
-psutil = [ "33384065f0014351fa70187548e3e95952c4df4bc5c38648bd0e647d21eaaf01", "f24cd52bafa06917935fe1b68c5a45593abe1f3097dc35b2dfc4718236795890", "99029b6af386b22882f0b6d537ffed5a9c3d5ff31782974aeaa1d683262d8543", "51e12aa74509832443862373a2655052b20c83cad7322f49d217452500b9a405", "325c334596ad2d8a178d0e7b4eecc91748096a87489b3701ee16986173000aaa", "52a91ba928a5e86e0249b4932d6e36972a72d1ad8dcc5b7f753a2ae14825a4ba", "b10703a109cc9225cd588c207f7f93480a420ade35c13515ea8f20063b42a392", "ddba952ed256151844d82fb13c8fb1019fe11ecaeacbd659d67ba5661ae73d0d", "ebe293be36bb24b95cdefc5131635496e88b17fabbcf1e4bc9b5c01f5e489cfe",]
-requests = [ "6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b", "9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e",]
-"ruamel.yaml" = [ "e4d53f6a0c21d8effc23371927e8569096d0364d7c703b2e6956c6281b6bde2c", "4b1929101d09612e0c7a42fbe06b0f929a4a89e1d14832353c1eb073580d3ba6", "181699cc08b157ef8a59a77e96a01b5ffa150044ed4e49fd98428ab9ac0e6ed9", "b6bc5f434d72a672dbe48471e70771789d5d93603716c9e36963fe1dc7a35718", "6932e1ad63c805a41665a94e5d7b70808e9e25943f72afba6d327fede2aeb43d", "dc051cd1fe541e321f6846bddba8e2c0de8ca409d51a6d9917c7b970d8d89a3d", "656dcd3d30774ffe252e46db96f4cf24b284d42c904b93f9cbe6b234028f7d2e", "039bb5b50a2f3b17c969ed1d381e050bca851e3c13fe8c2a9ad18f605ca111a5", "f5ef82b8efe378de6abb7042263d6f407b0760ad923ed477fa26007b1fa0e563", "cea830caa479ae083f51ffdb55fe430a2763e853a7b06195f203db6d28bf5264", "882cacb8af5f7009780da75041ef131d0ec80d9e0b81d3cf8d4b49a0a33fe6ef", "1d46053cb7acf0cd6b375e34abfb94f2e97c39269c17eb8b0226fe8a470c4ced", "2d1df676ac75fb5e0af7b91f7718a4b4f469a5d8ac4150edecc61f063283bbee", "759b485e8cda260bd87b7cdd2ad936a0ec359ee6154a9d856357446792b3faf5", "7afefe5dab4381393a2aa7ccb585ffd6080d52e7cd05f1df3788e9d0e4dfcea9", "766ee90985c667f77bf34950b1d945624c263ecb82d859961f78effb3355c946", "509842d96fb194f79b57483b76429f8956d8f7ade3cb49d1e5aeb5c5e9ef4918",]
+psutil = [ "319e12f6bae4d4d988fbff3bed792953fa3b44c791f085b0a1a230f755671ef7", "7789885a72aa3075d28d028236eb3f2b84d908f81d38ad41769a6ddc2fd81b7c", "0ff2b16e9045d01edb1dd10d7fbcc184012e37f6cd38029e959f2be9c6223f50", "dc85fad15ef98103ecc047a0d81b55bbf5fe1b03313b96e883acc2e2fa87ed5c", "7f4616bcb44a6afda930cfc40215e5e9fa7c6896e683b287c771c937712fbe2f", "529ae235896efb99a6f77653a7138273ab701ec9f0343a1f5030945108dee3c4", "254adb6a27c888f141d2a6032ae231d8ed4fc5f7583b4c825e5f7d7c78d26d2e", "a9b85b335b40a528a8e2a6b549592138de8429c6296e7361892958956e6a73cf", "686e5a35fe4c0acc25f3466c32e716f2d498aaae7b7edc03e2305b682226bcf6",]
+requests = [ "63b52e3c866428a224f97cab011de738c36aec0185aa91cfacd418b5d58911d1", "ec22d826a36ed72a7358ff3fe56cbd4ba69dd7a6718ffd450ff0e9df7a47ce6a",]
+"ruamel.yaml" = [ "7aa829110c77f237d7041391db4501374d7b9672dce2fe49c805345f1712d7cf", "0bfd91e4c23a00871f83046db312dd5071fcc56be82228e5560440b85d73f197", "68413b9a849261cf0d904c11670f4153f93baf6ce1ec40c5b8c7a81b1c9130f3", "3d244bc3bb6adce091e20692ad82c465a6fb27a5df0c7e8c8005d5c51f0cbded", "ac65e8b668dde7a7804a039ee31f66e3b316dadeeaf506b0b6de1c51ff44ad81", "b3b17c95c542e3caf2c85db739fe8c69c4589c3d7fd8f59c1bc68891126eb351", "384cb3fbc0c7eb0166cc009e6410e295f25c663e22b0e93ec62b1dc0c7fddc4e", "345f8c276b1af138f243a560c4f21884d7c150559ab13e344070044c73a31ab5", "3908c5b389b1543118b8b85ad48299969cd5d1ed22b2a2d8c4d6d9a3f3cfa24f", "961e6e1f41054140466ab5479a4c5c20e569fc40ac5f7fbdde62f97993db8aec", "d1dc969b690c38928f1ea25a86b0288d2c0aa9cb6f549bedbcb69deef8da975c", "c239fd438cbfab8f0af02b931ee4205821a615659475c87983bc866590104141", "8ef2c81d03a18ac20bae4e6563cf6a547eac4f22147dd9ce91430f68b35561f1", "65e9496033a2592e342be5c5c7846a05504077f843fb52de7fff4bd85484cd99", "06bb1cd211704a90e4d8e9f66f9baa6345300106d8e156acbc4061d513d40201", "0fc8bafd7d3a54dfdb4bd8bd0ee6ed12100d8125149d818cbce9f0d694121bbe", "974e91b23273eb6c32aef979a32c20ed0f6c6e4d9c1523611ea10c5fda9b8928",]
 six = [ "832dc0e10feb1aa2c68dcc57dbb658f1c7e65b9b61af69048abc87a2db00a0eb", "70e8a77beed4562e7f14fe23a786b54f6296e34344c23bc42f07b15018ff98e9",]
-urllib3 = [ "06330f386d6e4b195fbfc736b297f58c5a892e4440e54d294d7004e3a9bbea1b", "cc44da8e1145637334317feebd728bd869a35285b93cbb4cca2577da7e62db4f",]
+urllib3 = [ "b5725a0bd4ba422ab0e66e89e030c806576753ea3ee08554382c14e685d117b5", "a68ac5e15e76e7e5dd2b8f94007233e01effe3e50e8daddf69acfd81cb686baf",]
 websocket-client = [ "db70953ae4a064698b27ae56dcad84d0ee68b7b43cb40940f537738f38f510c1", "18f1170e6a1b5463986739d9fd45c4308b0d025c1b2f9b88788d8f69e8a5eb4a",]
 werkzeug = [ "d5da73735293558eb1651ee2fddc4d0dedcfa06538b8813a2e20011583c9e49b", "c3fd7a7d41976d9f44db327260e263132466836cef6f91512889ed60ad26557c",]

@@ -1,4 +1,4 @@
-from cc_faice.schema.main import main
+from cc_faice.convert.format.main import main
 
 
 if __name__ == '__main__':

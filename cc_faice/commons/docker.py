@@ -82,14 +82,20 @@ class DockerManager:
                 'mode': 'rw'
             }
 
-        std_out = self._client.containers.run(
+        c = self._client.containers.create(
             image,
             command,
             volumes=binds,
             name=name,
             user='1000:1000',
-            working_dir=work_dir,
-            remove=not leave_container
+            working_dir=work_dir
         )
+
+        c.start()
+        c.wait()
+        std_out = c.logs()
+
+        if not leave_container:
+            c.remove()
 
         return read(std_out.decode('utf-8'), 'CCAGENT_OUTPUT')

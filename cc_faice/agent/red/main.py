@@ -119,13 +119,15 @@ def run(
     except RedValidationError:
         result['debugInfo'] = exception_format(template_vals=template_vals)
         result['state'] = 'failed'
-        return
+        return result
     except:
         result['debugInfo'] = exception_format()
         result['state'] = 'failed'
-        return
+        return result
 
-    batches = red_data.get('batches', [None])
+    batches = [None]
+    if 'batches' in red_data:
+        batches = list(range(len(red_data['batches'])))
 
     for batch in batches:
         container_result = {
@@ -191,7 +193,7 @@ def run(
             ccagent_data = docker_manager.run_container(
                 container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
             )
-            container_result['container']['ccagent'] = ccagent_data
+            container_result['ccagent'] = ccagent_data
             docker_result_check(ccagent_data)
         except:
             container_result['debugInfo'] = exception_format()

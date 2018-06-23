@@ -2,13 +2,11 @@ import jsonschema
 from cc_core.commons.exceptions import EngineError
 from cc_core.commons.schemas.engines.container import container_engines
 from cc_core.commons.schemas.engines.execution import execution_engines
-from cc_core.commons.schemas.engines.virtualization import virtualization_engines
 
 
 ENGINES = {
     'container': container_engines,
-    'execution': execution_engines,
-    'virtualization': virtualization_engines
+    'execution': execution_engines
 }
 
 

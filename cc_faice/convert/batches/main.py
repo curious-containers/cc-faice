@@ -42,7 +42,7 @@ def run(red_file, dump_format, dump_prefix):
         ], error=True)
         return 1
 
-    for batch in range(red_data['batches']):
+    for batch in range(len(red_data['batches'])):
         batch_data = convert_batch_experiment(red_data, batch)
         dumped_batch_file = '{}batch_{}.{}'.format(dump_prefix, batch, ext)
         dump(batch_data, dump_format, dumped_batch_file)

@@ -108,6 +108,8 @@ def run(
         red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker'], 'faice agent red')
 
+        ram = red_data['container']['settings'].get('ram')
+
         docker_manager = DockerManager()
 
         image = red_data['container']['settings']['image']['url']
@@ -191,7 +193,7 @@ def run(
                 os.makedirs(work_dir)
 
             ccagent_data = docker_manager.run_container(
-                container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
+                container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container, ram
             )
             container_result['ccagent'] = ccagent_data
             docker_result_check(ccagent_data)

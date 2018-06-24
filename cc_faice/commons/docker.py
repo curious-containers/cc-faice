@@ -67,7 +67,7 @@ class DockerManager:
     def pull(self, image, auth=None):
         self._client.images.pull(image, auth_config=auth)
 
-    def run_container(self, name, image, command, ro_mappings, rw_mappings, work_dir, leave_container):
+    def run_container(self, name, image, command, ro_mappings, rw_mappings, work_dir, leave_container, ram):
         binds = {}
 
         for host_vol, container_vol in ro_mappings:
@@ -82,13 +82,20 @@ class DockerManager:
                 'mode': 'rw'
             }
 
+        mem_limit = None
+
+        if ram is not None:
+            mem_limit = '{}m'.format(ram)
+
         c = self._client.containers.create(
             image,
             command,
             volumes=binds,
             name=name,
             user='1000:1000',
-            working_dir=work_dir
+            working_dir=work_dir,
+            mem_limit=mem_limit,
+            memswap_limit=mem_limit
         )
 
         c.start()

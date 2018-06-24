@@ -11,7 +11,7 @@ platform = "UNKNOWN"
 python = "<3.5"
 [[package]]
 name = "cc-core"
-version = "5.0.1"
+version = "5.1.0"
 description = "CC-Core is part of the Curious Containers project. It provides common functionality for other parts of Curious Containers and implements agents to run data-driven experiments defined in RED or CWL format."
 category = "main"
 optional = false
@@ -248,11 +248,11 @@ platform = "any"
 [metadata]
 python-versions = "^3.4"
 platform = "*"
-content-hash = "b9b8f38e2fb4825d47f650983ca94942821c9a745efbaec51e98a8e83acf5442"
+content-hash = "54948bd5f55cc57cc08c4dc4c2c9cbabbd7207e76e4d00b8229c08acc61d1173"
 
 [metadata.hashes]
 "backports.ssl-match-hostname" = [ "502ad98707319f4a51fa2ca1c677bd659008d27ded9f6380c79e8932e38dcdf2",]
-cc-core = [ "f128d3769a59ed7aa4bf68a18a2613a2962767983fcc84b69fa6cd94d9f7ceb3", "b128c15329c19f43661cf7ea999bbd744c01477d908d7b5f5b909cd763914a57",]
+cc-core = [ "f4ec8961a612b61c4fe08396a74738e74e9ed0534fb991ee76546f1af70001fc", "fd644c56ca860475e5ab4097d69c482dc925488f081546d13ac4b9566361ae4c",]
 certifi = [ "9fa520c1bacfb634fa7af20a76bcbd3d5fb390481724c597da32c719a7dca4b0", "13e698f54293db9f89122b0581843a782ad0934a4fe0172d2a980ba77fc61bb7",]
 chardet = [ "fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691", "84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae",]
 click = [ "29f99fc6125fbc931b758dc053b3114e55c77a6e4c6c3a2674a2dc986016381d", "f15516df478d5a56180fbf80e68f206010e6d160fc39fa508b65e035fd75130b",]

@@ -115,7 +115,6 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, 
             'cwl',
             mapped_cwl_file,
             mapped_job_file,
-            '--return-zero',
             '--dump-format={}'.format(dump_format)
         ]
 
@@ -134,7 +133,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, 
         dump(dumped_job_data, dump_format, dumped_job_file)
 
         ccagent_data = docker_manager.run_container(
-            container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container
+            container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container, None
         )
         result['container']['ccagent'] = ccagent_data
         docker_result_check(ccagent_data)

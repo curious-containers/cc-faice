@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cc-faice"
-version = "5.0.1"
+version = "5.1.0"
 authors = ["Christoph Jansen <Christoph.Jansen@htw-berlin.de>"]
 license = "AGPL-3.0"
 readme = "README.md"
@@ -10,7 +10,7 @@ description = "FAICE (Fair Collaboration and Experiments) is part of the Curious
 
 [tool.poetry.dependencies]
 python = "^3.4"
-cc-core = "~5.0"
+cc-core = "~5.1"
 flask = "^1.0"
 jsonschema = "^2.6"
 docker = "^3.4"

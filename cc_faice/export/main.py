@@ -3,8 +3,8 @@ from argparse import ArgumentParser
 from cc_core.commons.files import load, read, load_and_read, dump, file_extension, wrapped_print
 from cc_core.commons.red import red_validation
 from cc_core.commons.jinja import template_values, fill_template, jinja_validation
+from cc_core.commons.engines import engine_validation
 
-from cc_faice.commons.engines import engine_validation
 from cc_faice.commons.red import dump_agent_cwl, dump_agent_job, dump_app_cwl
 from cc_faice.commons.docker import dump_job
 

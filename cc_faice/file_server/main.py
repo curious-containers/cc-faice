@@ -10,9 +10,9 @@ DESCRIPTION = 'Run a simple http file server for debugging purposes. USE CAREFUL
 
 def attach_args(parser):
     parser.add_argument(
-        '--bind-host', action='store', type=str, metavar='BIND_HOST', default='127.0.0.1',
-        help='Bind server to a network interface like "172.17.0.1" (docker) or "0.0.0.0" (all interfaces). '
-             'Default is "127.0.0.1" (localhost).'
+        '--bind-host', action='store', type=str, metavar='BIND_HOST', default='0.0.0.0',
+        help='Bind server to a network interface like "172.17.0.1" (docker) or "127.0.0.1" (localhost). '
+             'Default is "0.0.0.0" (all interfaces).'
     )
     parser.add_argument(
         '--bind-port', action='store', type=int, metavar='BIND_PORT', default=5000,

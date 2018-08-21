@@ -43,16 +43,24 @@ def input_volume_mappings(job_data, dumped_job_data, input_dir):
     volumes = []
 
     for key, val in job_data.items():
-        if not isinstance(val, dict):
-            continue
+        if isinstance(val, list) and len(val) > 0 and isinstance(val[0], dict):
+            for i, e in enumerate(val):
+                file_path = location(key, e)
 
-        file_path = location(key, val)
+                if not os.path.isabs(file_path):
+                    file_path = os.path.join(os.path.expanduser(input_dir), file_path)
 
-        if not os.path.isabs(file_path):
-            file_path = os.path.join(os.path.expanduser(input_dir), file_path)
+                container_file_path = dumped_job_data[key][i]['path']
+                volumes.append([os.path.abspath(file_path), container_file_path])
 
-        container_file_path = dumped_job_data[key]['path']
-        volumes.append([os.path.abspath(file_path), container_file_path])
+        if isinstance(val, dict):
+            file_path = location(key, val)
+
+            if not os.path.isabs(file_path):
+                file_path = os.path.join(os.path.expanduser(input_dir), file_path)
+
+            container_file_path = dumped_job_data[key]['path']
+            volumes.append([os.path.abspath(file_path), container_file_path])
 
     return volumes
 

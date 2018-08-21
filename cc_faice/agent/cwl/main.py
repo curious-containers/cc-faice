@@ -1,6 +1,7 @@
 import os
 from uuid import uuid4
 from argparse import ArgumentParser
+from pprint import pprint
 
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
 from cc_core.commons.cwl import cwl_validation

@@ -6,8 +6,8 @@ from cc_core.commons.files import load, read, load_and_read, dump, dump_print, f
 from cc_core.commons.exceptions import exception_format, RedValidationError
 from cc_core.commons.red import red_validation
 from cc_core.commons.jinja import jinja_validation, fill_template, template_values
+from cc_core.commons.engines import engine_validation
 
-from cc_faice.commons.engines import engine_validation
 from cc_faice.commons.docker import DockerManager, docker_result_check
 
 

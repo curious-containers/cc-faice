@@ -86,7 +86,7 @@ def run(
         'state': 'succeeded'
     }
 
-    template_vals = None
+    secrets_data = None
     ext = file_extension(dump_format)
     dumped_secrets_file = '{}secrets.{}'.format(dump_prefix, ext)
 
@@ -95,15 +95,14 @@ def run(
         red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker'], 'faice agent red')
 
-        secrets_data = None
         if secrets_file:
             secrets_data = load_and_read(secrets_file, 'SECRETS_FILE')
             secrets_validation(secrets_data)
 
         secrets_data = template_values(red_data, secrets_data, non_interactive=non_interactive)
 
-        if template_vals:
-            dump(template_vals, dump_format, dumped_secrets_file)
+        if secrets_data:
+            dump(secrets_data, dump_format, dumped_secrets_file)
 
         red_data = fill_template(red_data, secrets_data, finalize=False)
 
@@ -113,13 +112,13 @@ def run(
 
         image = red_data['container']['settings']['image']['url']
         registry_auth = red_data['container']['settings']['image'].get('auth')
-        registry_auth = fill_template(registry_auth, None)
+        registry_auth = fill_template(registry_auth, None, allow_section=True)
 
         if not disable_pull:
             docker_manager.pull(image, auth=registry_auth)
 
     except RedValidationError:
-        result['debugInfo'] = exception_format(template_vals=template_vals)
+        result['debugInfo'] = exception_format(secrets_data=secrets_data)
         result['state'] = 'failed'
         return result
     except:
@@ -152,7 +151,7 @@ def run(
 
             mapped_work_dir = '/opt/cc/work'
             mapped_red_file = '/opt/cc/red.{}'.format(ext)
-            mapped_jinja_file = '/opt/cc/jinja.{}'.format(ext)
+            mapped_secrets_file = '/opt/cc/secrets.{}'.format(ext)
 
             container_name = str(uuid4())
             container_result['name'] = container_name
@@ -173,8 +172,8 @@ def run(
             if ignore_outputs:
                 command.append('--ignore-outputs')
 
-            if template_vals:
-                command.append('--jinja-file={}'.format(mapped_jinja_file))
+            if secrets_data:
+                command.append('--secrets-file={}'.format(mapped_secrets_file))
 
             command = ' '.join([str(c) for c in command])
 
@@ -183,8 +182,8 @@ def run(
             ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
             rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
 
-            if template_vals:
-                rw_mappings.append([os.path.abspath(dumped_secrets_file), mapped_jinja_file])
+            if secrets_data:
+                rw_mappings.append([os.path.abspath(dumped_secrets_file), mapped_secrets_file])
 
             container_result['volumes']['readOnly'] = ro_mappings
             container_result['volumes']['readWrite'] = rw_mappings

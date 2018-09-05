@@ -2,10 +2,10 @@ import os
 from uuid import uuid4
 from argparse import ArgumentParser
 
-from cc_core.commons.files import load, read, load_and_read, dump, dump_print, file_extension
+from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
 from cc_core.commons.exceptions import exception_format, RedValidationError
 from cc_core.commons.red import red_validation
-from cc_core.commons.jinja import jinja_validation, fill_template, template_values
+from cc_core.commons.secrets import secrets_validation, fill_template, template_values
 from cc_core.commons.engines import engine_validation
 
 from cc_faice.commons.docker import DockerManager, docker_result_check
@@ -20,9 +20,9 @@ def attach_args(parser):
         help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
     )
     parser.add_argument(
-        '-j', '--jinja-file', action='store', type=str, metavar='JINJA_FILE',
-        help='JINJA_FILE (json or yaml) containing values for jinja template variables in RED_FILE as local path '
-             'or http url.'
+        '-s', '--secrets-file', action='store', type=str, metavar='SECRETS_FILE',
+        help='SECRETS_FILE (json or yaml) containing key-value pairs for secret template variables in RED_FILE as '
+             'local path or http url.'
     )
     parser.add_argument(
         '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
@@ -71,7 +71,7 @@ def main():
 
 def run(
         red_file,
-        jinja_file,
+        secrets_file,
         outdir,
         disable_pull,
         leave_container,
@@ -88,25 +88,24 @@ def run(
 
     template_vals = None
     ext = file_extension(dump_format)
-    dumped_jinja_file = '{}jinja.{}'.format(dump_prefix, ext)
+    dumped_secrets_file = '{}secrets.{}'.format(dump_prefix, ext)
 
     try:
-        red_raw = load(red_file, 'RED_FILE')
-
-        jinja_data = None
-        if jinja_file:
-            jinja_data = load_and_read(jinja_file, 'JINJA_FILE')
-            jinja_validation(jinja_data)
-
-        template_vals = template_values(red_raw, jinja_data, non_interactive=non_interactive)
-
-        if template_vals:
-            dump(template_vals, dump_format, dumped_jinja_file)
-
-        red_raw_filled = fill_template(red_raw, template_vals)
-        red_data = read(red_raw_filled, 'RED_FILE')
+        red_data = load_and_read(red_file, 'RED_FILE')
         red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker'], 'faice agent red')
+
+        secrets_data = None
+        if secrets_file:
+            secrets_data = load_and_read(secrets_file, 'SECRETS_FILE')
+            secrets_validation(secrets_data)
+
+        secrets_data = template_values(red_data, secrets_data, non_interactive=non_interactive)
+
+        if template_vals:
+            dump(template_vals, dump_format, dumped_secrets_file)
+
+        red_data = fill_template(red_data, secrets_data, finalize=False)
 
         ram = red_data['container']['settings'].get('ram')
 
@@ -114,6 +113,7 @@ def run(
 
         image = red_data['container']['settings']['image']['url']
         registry_auth = red_data['container']['settings']['image'].get('auth')
+        registry_auth = fill_template(registry_auth, None)
 
         if not disable_pull:
             docker_manager.pull(image, auth=registry_auth)
@@ -184,7 +184,7 @@ def run(
             rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
 
             if template_vals:
-                rw_mappings.append([os.path.abspath(dumped_jinja_file), mapped_jinja_file])
+                rw_mappings.append([os.path.abspath(dumped_secrets_file), mapped_jinja_file])
 
             container_result['volumes']['readOnly'] = ro_mappings
             container_result['volumes']['readWrite'] = rw_mappings
@@ -203,7 +203,7 @@ def run(
             result['state'] = 'failed'
             break
 
-    if os.path.exists(dumped_jinja_file):
-        os.remove(dumped_jinja_file)
+    if os.path.exists(dumped_secrets_file):
+        os.remove(dumped_secrets_file)
 
     return result

@@ -1,8 +1,8 @@
 from argparse import ArgumentParser
 
-from cc_core.commons.files import load, read, load_and_read, dump, file_extension, wrapped_print
+from cc_core.commons.files import load_and_read, dump, file_extension, wrapped_print
 from cc_core.commons.red import red_validation
-from cc_core.commons.jinja import template_values, fill_template, jinja_validation
+from cc_core.commons.secrets import template_values, fill_template, secrets_validation
 from cc_core.commons.engines import engine_validation
 
 from cc_faice.commons.red import dump_agent_cwl, dump_agent_job, dump_app_cwl
@@ -18,9 +18,9 @@ def attach_args(parser):
         help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
     )
     parser.add_argument(
-        '-j', '--jinja-file', action='store', type=str, metavar='JINJA_FILE',
-        help='JINJA_FILE (json or yaml) containing values for jinja template variables in RED_FILE as local path '
-             'or http url.'
+        '-s', '--secrets-file', action='store', type=str, metavar='SECRETS_FILE',
+        help='SECRETS_FILE (json or yaml) containing key-value pairs for secret template variables in RED_FILE as '
+             'local path or http url.'
     )
     parser.add_argument(
         '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
@@ -48,19 +48,19 @@ def main():
     return run(**args.__dict__)
 
 
-def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix):
-    red_raw = load(red_file, 'RED_FILE')
-
-    jinja_data = None
-    if jinja_file:
-        jinja_data = load_and_read(jinja_file, 'JINJA_FILE')
-        jinja_validation(jinja_data)
-
-    template_vals = template_values(red_raw, jinja_data, non_interactive=non_interactive)
-    red_raw_filled = fill_template(red_raw, template_vals)
-    red_data = read(red_raw_filled, 'RED_FILE')
+def run(red_file, secrets_file, outdir, non_interactive, dump_format, dump_prefix):
+    red_data = load_and_read(red_file, 'RED_FILE')
     red_validation(red_data, False, container_requirement=True)
     engine_validation(red_data, 'container', ['docker'], 'faice export')
+
+    secrets_data = None
+    if secrets_file:
+        secrets_data = load_and_read(secrets_file, 'SECRETS_FILE')
+        secrets_validation(secrets_data)
+
+    secrets_data = template_values(red_data, secrets_data, non_interactive=non_interactive)
+    red_data = fill_template(red_data, secrets_data)
+
     if red_data['container']['settings']['image'].get('auth'):
         wrapped_print([
             'WARNING: cannot export container.settings.image.auth to cwl.',
@@ -97,9 +97,9 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
     dump(dumped_agent_job_data, dump_format, dumped_agent_job_file)
     dump(dumped_agent_job_ignore_output_data, dump_format, dumped_agent_job_ignore_output_file)
 
-    option2_command = 'cwltool {} {}'.format(dumped_app_cwl_file, dumped_app_job_file)
+    option3_command = 'cwltool {} {}'.format(dumped_app_cwl_file, dumped_app_job_file)
     if outdir:
-        option2_command = '{} --outdir {}'.format(option2_command, outdir)
+        option3_command = '{} --outdir {}'.format(option3_command, outdir)
 
     wrapped_print([
         'OPTION 1:',
@@ -113,7 +113,7 @@ def run(red_file, jinja_file, outdir, non_interactive, dump_format, dump_prefix)
         'OPTION 3:',
         'Use cwltool to execute app in container with support for LOCAL inputs and LOCAL outputs.',
         'ATTENTION: adjust input file paths in {}.'.format(dumped_app_job_file),
-        '$ {}'.format(option2_command),
+        '$ {}'.format(option3_command),
         '',
         'OPTION 4:',
         'Customize exported CWL and JOB files.'

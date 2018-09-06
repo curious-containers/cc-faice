@@ -17,11 +17,9 @@ name = "cc-core"
 optional = false
 platform = "*"
 python-versions = ">=3.4,<4.0"
-version = "5.2.2"
+version = "5.3.0"
 
 [package.dependencies]
-flask = ">=1.0,<2.0"
-jinja2 = ">=2.10,<3.0"
 jsonschema = ">=2.6,<3.0"
 psutil = ">=5.4,<6.0"
 requests = ">=2.18,<3.0"
@@ -273,13 +271,13 @@ python-versions = "*"
 version = "0.14.1"
 
 [metadata]
-content-hash = "d70bb46f7488a98467a093362e656e058fff1c9c93d68527f5e054d6303da6f5"
+content-hash = "715f15c27a4cd36e4cdbfa4d046521f23504ed871967bc6990566575d2542aa2"
 platform = "*"
 python-versions = "^3.4"
 
 [metadata.hashes]
 "backports.ssl-match-hostname" = ["502ad98707319f4a51fa2ca1c677bd659008d27ded9f6380c79e8932e38dcdf2"]
-cc-core = ["0aeb8635589c0830a2bcf56dbca41bd61da61aa31316d26834584690f1d21283", "0c4e82c1959c47ff5a002167ca43dbdf51fd4411c7b64769dfa0dd5228e2b90f"]
+cc-core = ["2f48d7ba8af2cd1ea1681f837a49acda0041e6773b3f19a5390aef5def003059", "a990798a8cd5853df32947f8e16ec6dbb1e27d4ba33af6f514237d2f745f8caf"]
 certifi = ["376690d6f16d32f9d1fe8932551d80b23e9d393a8578c5633a2ed39a64861638", "456048c7e371c089d0a77a5212fb37a2c2dce1e24146e3b7e0261736aaeaa22a"]
 chardet = ["84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae", "fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691"]
 click = ["29f99fc6125fbc931b758dc053b3114e55c77a6e4c6c3a2674a2dc986016381d", "f15516df478d5a56180fbf80e68f206010e6d160fc39fa508b65e035fd75130b"]

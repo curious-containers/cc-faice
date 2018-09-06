@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 
 from cc_core.commons.files import load_and_read, dump, file_extension, wrapped_print
 from cc_core.commons.red import red_validation
-from cc_core.commons.secrets import template_values, fill_template, secrets_validation
+from cc_core.commons.templates import inspect_templates_and_secrets, fill_template, fill_validation
 from cc_core.commons.engines import engine_validation
 
 from cc_faice.commons.red import dump_agent_cwl, dump_agent_job, dump_app_cwl
@@ -18,8 +18,8 @@ def attach_args(parser):
         help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
     )
     parser.add_argument(
-        '-s', '--secrets-file', action='store', type=str, metavar='SECRETS_FILE',
-        help='SECRETS_FILE (json or yaml) containing key-value pairs for secret template variables in RED_FILE as '
+        '--fill-file', action='store', type=str, metavar='FILL_FILE',
+        help='FILL_FILE (json or yaml) containing key-value pairs for template variables in RED_FILE as '
              'local path or http url.'
     )
     parser.add_argument(
@@ -48,18 +48,18 @@ def main():
     return run(**args.__dict__)
 
 
-def run(red_file, secrets_file, outdir, non_interactive, dump_format, dump_prefix):
+def run(red_file, fill_file, outdir, non_interactive, dump_format, dump_prefix):
     red_data = load_and_read(red_file, 'RED_FILE')
     red_validation(red_data, False, container_requirement=True)
     engine_validation(red_data, 'container', ['docker'], 'faice export')
 
-    secrets_data = None
-    if secrets_file:
-        secrets_data = load_and_read(secrets_file, 'SECRETS_FILE')
-        secrets_validation(secrets_data)
+    fill_data = None
+    if fill_file:
+        fill_data = load_and_read(fill_file, 'FILL_FILE')
+        fill_validation(fill_data)
 
-    secrets_data = template_values(red_data, secrets_data, non_interactive=non_interactive)
-    red_data = fill_template(red_data, secrets_data)
+    template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
+    red_data = fill_template(red_data, template_keys_and_values, False, True)
 
     if red_data['container']['settings']['image'].get('auth'):
         wrapped_print([

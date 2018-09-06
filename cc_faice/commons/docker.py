@@ -113,4 +113,6 @@ class DockerManager:
         if not leave_container:
             c.remove()
 
+        print(std_out.decode('utf-8'))
+
         return read(std_out.decode('utf-8'), 'CCAGENT_OUTPUT')

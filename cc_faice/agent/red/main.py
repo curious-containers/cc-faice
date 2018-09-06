@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
 from cc_core.commons.exceptions import exception_format, RedValidationError
 from cc_core.commons.red import red_validation
-from cc_core.commons.secrets import secrets_validation, fill_template, template_values
+from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation
 
 from cc_faice.commons.docker import DockerManager, docker_result_check
@@ -20,8 +20,8 @@ def attach_args(parser):
         help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
     )
     parser.add_argument(
-        '-s', '--secrets-file', action='store', type=str, metavar='SECRETS_FILE',
-        help='SECRETS_FILE (json or yaml) containing key-value pairs for secret template variables in RED_FILE as '
+        '--fill-file', action='store', type=str, metavar='FILL_FILE',
+        help='FILL_FILE (json or yaml) containing key-value pairs for template variables in RED_FILE as '
              'local path or http url.'
     )
     parser.add_argument(
@@ -71,7 +71,7 @@ def main():
 
 def run(
         red_file,
-        secrets_file,
+        fill_file,
         outdir,
         disable_pull,
         leave_container,
@@ -86,25 +86,24 @@ def run(
         'state': 'succeeded'
     }
 
-    secrets_data = None
+    secret_values = None
     ext = file_extension(dump_format)
-    dumped_secrets_file = '{}secrets.{}'.format(dump_prefix, ext)
+    dumped_fill_file = '{}fill.{}'.format(dump_prefix, ext)
 
     try:
         red_data = load_and_read(red_file, 'RED_FILE')
         red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker'], 'faice agent red')
 
-        if secrets_file:
-            secrets_data = load_and_read(secrets_file, 'SECRETS_FILE')
-            secrets_validation(secrets_data)
+        fill_data = None
+        if fill_file:
+            fill_data = load_and_read(fill_file, 'FILL_FILE')
+            fill_validation(fill_data)
 
-        secrets_data = template_values(red_data, secrets_data, non_interactive=non_interactive)
+        template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
 
-        if secrets_data:
-            dump(secrets_data, dump_format, dumped_secrets_file)
-
-        red_data = fill_template(red_data, secrets_data, finalize=False)
+        if template_keys_and_values:
+            dump(template_keys_and_values, dump_format, dumped_fill_file)
 
         ram = red_data['container']['settings'].get('ram')
 
@@ -112,13 +111,13 @@ def run(
 
         image = red_data['container']['settings']['image']['url']
         registry_auth = red_data['container']['settings']['image'].get('auth')
-        registry_auth = fill_template(registry_auth, None, allow_section=True)
+        registry_auth = fill_template(registry_auth, template_keys_and_values, True, True)
 
         if not disable_pull:
             docker_manager.pull(image, auth=registry_auth)
 
     except RedValidationError:
-        result['debugInfo'] = exception_format(secrets_data=secrets_data)
+        result['debugInfo'] = exception_format(secret_values=secret_values)
         result['state'] = 'failed'
         return result
     except:
@@ -151,7 +150,7 @@ def run(
 
             mapped_work_dir = '/opt/cc/work'
             mapped_red_file = '/opt/cc/red.{}'.format(ext)
-            mapped_secrets_file = '/opt/cc/secrets.{}'.format(ext)
+            mapped_fill_file = '/opt/cc/fill.{}'.format(ext)
 
             container_name = str(uuid4())
             container_result['name'] = container_name
@@ -172,8 +171,8 @@ def run(
             if ignore_outputs:
                 command.append('--ignore-outputs')
 
-            if secrets_data:
-                command.append('--secrets-file={}'.format(mapped_secrets_file))
+            if template_keys_and_values:
+                command.append('--fill-file={}'.format(mapped_fill_file))
 
             command = ' '.join([str(c) for c in command])
 
@@ -182,8 +181,8 @@ def run(
             ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
             rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
 
-            if secrets_data:
-                rw_mappings.append([os.path.abspath(dumped_secrets_file), mapped_secrets_file])
+            if template_keys_and_values:
+                rw_mappings.append([os.path.abspath(dumped_fill_file), mapped_fill_file])
 
             container_result['volumes']['readOnly'] = ro_mappings
             container_result['volumes']['readWrite'] = rw_mappings
@@ -202,7 +201,7 @@ def run(
             result['state'] = 'failed'
             break
 
-    if os.path.exists(dumped_secrets_file):
-        os.remove(dumped_secrets_file)
+    if os.path.exists(dumped_fill_file):
+        os.remove(dumped_fill_file)
 
     return result

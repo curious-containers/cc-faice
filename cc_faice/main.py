@@ -4,12 +4,14 @@ from cc_faice.version import VERSION
 from cc_faice.commons.compatibility import version_validation
 
 from cc_faice.agent.main import main as agent_main
+from cc_faice.exec.main import main as exec_main
 from cc_faice.schema.main import main as schema_main
 from cc_faice.file_server.main import main as file_server_main
 from cc_faice.export.main import main as export_main
 from cc_faice.convert.main import main as convert_main
 
 from cc_faice.agent.main import DESCRIPTION as AGENT_DESCRIPTION
+from cc_faice.exec.main import DESCRIPTION as EXEC_DESCRIPTION
 from cc_faice.schema.main import DESCRIPTION as SCHEMA_DESCRIPTION
 from cc_faice.file_server.main import DESCRIPTION as FILE_SERVER_DESCRIPTION
 from cc_faice.export.main import DESCRIPTION as EXPORT_DESCRIPTION
@@ -24,6 +26,7 @@ DESCRIPTION = 'FAICE Copyright (C) 2018  Christoph Jansen. This software is dist
               'LICENSE and is part of the Curious Containers project (https://www.curious-containers.cc).'
 MODES = OrderedDict([
     ('agent', {'main': agent_main, 'description': AGENT_DESCRIPTION}),
+    ('exec', {'main': exec_main, 'description': EXEC_DESCRIPTION}),
     ('schema', {'main': schema_main, 'description': SCHEMA_DESCRIPTION}),
     ('convert', {'main': convert_main, 'description': CONVERT_DESCRIPTION}),
     ('export', {'main': export_main, 'description': EXPORT_DESCRIPTION}),

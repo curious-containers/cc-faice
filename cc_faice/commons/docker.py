@@ -6,6 +6,9 @@ from cc_core.commons.files import read
 from cc_core.commons.exceptions import AgentError
 
 
+DEFAULT_DOCKER_RUNTIME = 'runc'
+
+
 def docker_result_check(ccagent_data):
     if ccagent_data['state'] != 'succeeded':
         raise AgentError('ccagent did not succeed')
@@ -65,6 +68,21 @@ def input_volume_mappings(job_data, dumped_job_data, input_dir):
     return volumes
 
 
+def nvidia_environment_variables(environment, gpus):
+    """
+    Updates a dictionary containing environment variables to setup Nvidia-GPUs.
+
+    :param environment: The environment variables to update
+    :param gpus: A list of GPUDevices.
+    """
+
+    if gpus:
+        nvidia_visible_devices = ""
+        for gpu in gpus:
+            nvidia_visible_devices += "{},".format(gpu.device_id)
+        environment["NVIDIA_VISIBLE_DEVICES"] = nvidia_visible_devices
+
+
 class DockerManager:
     def __init__(self):
         self._client = docker.DockerClient(
@@ -75,7 +93,8 @@ class DockerManager:
     def pull(self, image, auth=None):
         self._client.images.pull(image, auth_config=auth)
 
-    def run_container(self, name, image, command, ro_mappings, rw_mappings, work_dir, leave_container, ram):
+    def run_container(self, name, image, command, ro_mappings, rw_mappings, work_dir,
+                      leave_container, ram, runtime=DEFAULT_DOCKER_RUNTIME, gpus=[], environment={}):
         binds = {}
 
         for host_vol, container_vol in ro_mappings:
@@ -95,6 +114,11 @@ class DockerManager:
         if ram is not None:
             mem_limit = '{}m'.format(ram)
 
+        nvidia_environment_variables(environment, gpus)
+
+        print("runtime: {}".format(runtime))
+        print("environment: {}".format(environment))
+
         c = self._client.containers.create(
             image,
             command,
@@ -103,7 +127,10 @@ class DockerManager:
             user='1000:1000',
             working_dir=work_dir,
             mem_limit=mem_limit,
-            memswap_limit=mem_limit
+            memswap_limit=mem_limit,
+            # runtime=runtime,
+            # environment=environment
+            network_mode='host' # TODO: remove
         )
 
         c.start()

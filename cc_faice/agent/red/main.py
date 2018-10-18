@@ -8,7 +8,8 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation
 
-from cc_faice.commons.docker import DockerManager, docker_result_check
+from cc_faice.commons.docker import DockerManager, docker_result_check, DEFAULT_DOCKER_RUNTIME
+from cc_faice.commons.gpu_info import GPURequirement, get_gpus
 
 
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
@@ -69,6 +70,44 @@ def main():
     return 1
 
 
+def get_runtime(red_data):
+    """
+    Extracts the docker runtime string.
+
+    :param red_data: The yaml data of the job file as python dictionary
+    :return: A String specifing the docker runtime (one of: 'docker', 'nvidia-docker')
+    """
+
+    runtime = DEFAULT_DOCKER_RUNTIME
+    if red_data['container']['engine'] == 'nvidia-docker':
+        runtime = 'nvidia-docker'
+
+    return runtime
+
+
+def get_gpu_requirements(red_data):
+    """
+    Extracts the GPU requirements as list of GPURequirements.
+
+    :param red_data: The yaml data of the job file as python dictionary
+    :return: A list of GPURequirements
+    """
+    requirements = []
+
+    gpus_reqs = red_data['container']['settings'].get('gpus')
+    if gpus_reqs:
+        if type(gpus_reqs) is dict:
+            count = gpus_reqs.get('count')
+            if count:
+                for i in range(count):
+                    requirements.append(GPURequirement())
+        elif type(gpus_reqs) is list:
+            for gpu_req in gpus_reqs:
+                requirements.append(GPURequirement(**gpu_req))
+
+    return requirements
+
+
 def run(
         red_file,
         fill_file,
@@ -93,7 +132,7 @@ def run(
     try:
         red_data = load_and_read(red_file, 'RED_FILE')
         red_validation(red_data, ignore_outputs, container_requirement=True)
-        engine_validation(red_data, 'container', ['docker'], 'faice agent red')
+        engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
 
         fill_data = None
         if fill_file:
@@ -105,10 +144,13 @@ def run(
         if template_keys_and_values:
             dump(template_keys_and_values, dump_format, dumped_fill_file)
 
-        ram = red_data['container']['settings'].get('ram')
-
         docker_manager = DockerManager()
 
+        runtime = get_runtime(red_data)
+        gpu_requirements = get_gpu_requirements(red_data)
+        gpus = get_gpus(red_data['container']['engine'], gpu_requirements)
+
+        ram = red_data['container']['settings'].get('ram')
         image = red_data['container']['settings']['image']['url']
         registry_auth = red_data['container']['settings']['image'].get('auth')
         registry_auth = fill_template(registry_auth, template_keys_and_values, True, True)
@@ -191,7 +233,16 @@ def run(
                 os.makedirs(work_dir)
 
             ccagent_data = docker_manager.run_container(
-                container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container, ram
+                name=container_name,
+                image=image,
+                command=command,
+                ro_mappings=ro_mappings,
+                rw_mappings=rw_mappings,
+                work_dir=mapped_work_dir,
+                leave_container=leave_container,
+                ram=ram,
+                runtime=runtime,
+                gpus=gpus
             )
             container_result['ccagent'] = ccagent_data
             docker_result_check(ccagent_data)

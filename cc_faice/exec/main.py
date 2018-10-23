@@ -51,6 +51,7 @@ def run(red_file, fill_file, non_interactive, dump_format):
 
     template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
     red_data = fill_template(red_data, template_keys_and_values, False, False)
+    red_data_removed_underscores = fill_template(red_data, template_keys_and_values, False, True)
 
     if 'access' not in red_data['execution']['settings']:
         wrapped_print([
@@ -64,7 +65,7 @@ def run(red_file, fill_file, non_interactive, dump_format):
         ], error=True)
         return 1
 
-    access = red_data['execution']['settings']['access']
+    access = red_data_removed_underscores['execution']['settings']['access']
 
     r = requests.post(
         '{}/red'.format(access['url'].strip('/')),

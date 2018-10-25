@@ -8,7 +8,7 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation
 
-from cc_faice.commons.docker import DockerManager, docker_result_check
+from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 
 
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
@@ -35,6 +35,10 @@ def attach_args(parser):
     parser.add_argument(
         '--leave-container', action='store_true',
         help='Do not delete Docker container used by jobs after they exit.'
+    )
+    parser.add_argument(
+        '--preserve-environment', action='append', type=str, metavar='ENVVAR',
+        help='Preserve specific environment variables when running container. May be provided multiple times.'
     )
     parser.add_argument(
         '--non-interactive', action='store_true',
@@ -75,6 +79,7 @@ def run(
         outdir,
         disable_pull,
         leave_container,
+        preserve_environment,
         non_interactive,
         dump_format,
         dump_prefix,
@@ -190,8 +195,18 @@ def run(
             if not os.path.exists(work_dir):
                 os.makedirs(work_dir)
 
+            environment = env_vars(preserve_environment)
+
             ccagent_data = docker_manager.run_container(
-                container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container, ram
+                container_name,
+                image,
+                command,
+                ro_mappings,
+                rw_mappings,
+                mapped_work_dir,
+                leave_container,
+                ram,
+                environment
             )
             container_result['ccagent'] = ccagent_data
             docker_result_check(ccagent_data)

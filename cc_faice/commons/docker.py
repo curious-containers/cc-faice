@@ -65,6 +65,19 @@ def input_volume_mappings(job_data, dumped_job_data, input_dir):
     return volumes
 
 
+def env_vars(preserve_environment):
+    if preserve_environment is None:
+        return None
+
+    environment = {}
+
+    for var in preserve_environment:
+        if var in os.environ:
+            environment[var] = os.environ[var]
+
+    return environment
+
+
 class DockerManager:
     def __init__(self):
         self._client = docker.DockerClient(
@@ -75,7 +88,18 @@ class DockerManager:
     def pull(self, image, auth=None):
         self._client.images.pull(image, auth_config=auth)
 
-    def run_container(self, name, image, command, ro_mappings, rw_mappings, work_dir, leave_container, ram):
+    def run_container(
+            self,
+            name,
+            image,
+            command,
+            ro_mappings,
+            rw_mappings,
+            work_dir,
+            leave_container,
+            ram,
+            environment
+    ):
         binds = {}
 
         for host_vol, container_vol in ro_mappings:
@@ -103,7 +127,8 @@ class DockerManager:
             user='1000:1000',
             working_dir=work_dir,
             mem_limit=mem_limit,
-            memswap_limit=mem_limit
+            memswap_limit=mem_limit,
+            environment=environment
         )
 
         c.start()

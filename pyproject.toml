@@ -15,7 +15,13 @@ flask = "^1.0"
 jsonschema = "^2.6"
 docker = "^3.4"
 
+# optional
+pycuda = { version = "^2018.1.1", optional = true }
+
 [tool.poetry.dev-dependencies]
 
 [tool.poetry.scripts]
 faice = 'cc_faice.main:main'
+
+[tool.poetry.extras]
+pycuda = ["pycuda"]

@@ -80,7 +80,7 @@ def get_runtime(red_data):
 
     runtime = DEFAULT_DOCKER_RUNTIME
     if red_data['container']['engine'] == 'nvidia-docker':
-        runtime = 'nvidia-docker'
+        runtime = 'nvidia'
 
     return runtime
 

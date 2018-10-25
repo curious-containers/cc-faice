@@ -116,9 +116,6 @@ class DockerManager:
 
         nvidia_environment_variables(environment, gpus)
 
-        print("runtime: {}".format(runtime))
-        print("environment: {}".format(environment))
-
         c = self._client.containers.create(
             image,
             command,
@@ -128,9 +125,8 @@ class DockerManager:
             working_dir=work_dir,
             mem_limit=mem_limit,
             memswap_limit=mem_limit,
-            # runtime=runtime,
-            # environment=environment
-            network_mode='host' # TODO: remove
+            runtime=runtime,
+            environment=environment,
         )
 
         c.start()

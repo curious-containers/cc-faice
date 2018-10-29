@@ -7,6 +7,7 @@ from cc_core.commons.exceptions import AgentError
 
 
 DEFAULT_DOCKER_RUNTIME = 'runc'
+NVIDIA_DOCKER_RUNTIME = 'nvidia'
 
 
 def docker_result_check(ccagent_data):
@@ -85,7 +86,7 @@ def nvidia_environment_variables(environment, gpus):
 
 def env_vars(preserve_environment):
     if preserve_environment is None:
-        return None
+        return {}
 
     environment = {}
 
@@ -137,7 +138,8 @@ class DockerManager:
         if ram is not None:
             mem_limit = '{}m'.format(ram)
 
-        nvidia_environment_variables(environment, gpus)
+        if runtime == NVIDIA_DOCKER_RUNTIME:
+            nvidia_environment_variables(environment, gpus)
 
         c = self._client.containers.create(
             image,

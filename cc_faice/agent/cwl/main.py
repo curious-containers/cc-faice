@@ -1,13 +1,12 @@
 import os
 from uuid import uuid4
 from argparse import ArgumentParser
-from pprint import pprint
 
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format
 
-from cc_faice.commons.docker import dump_job, input_volume_mappings, DockerManager, docker_result_check
+from cc_faice.commons.docker import dump_job, input_volume_mappings, DockerManager, docker_result_check, env_vars
 
 
 DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its corresponding JOB_FILE in a container with ' \
@@ -36,6 +35,10 @@ def attach_args(parser):
         help='Do not delete Docker container used by jobs after they exit.'
     )
     parser.add_argument(
+        '--preserve-environment', action='append', type=str, metavar='ENVVAR',
+        help='Preserve specific environment variables when running container. May be provided multiple times.'
+    )
+    parser.add_argument(
         '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
         default='yaml', help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
                              'is "yaml".'
@@ -60,7 +63,7 @@ def main():
     return 1
 
 
-def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, dump_prefix):
+def run(cwl_file, job_file, outdir, disable_pull, leave_container, preserve_environment, dump_format, dump_prefix):
     result = {
         'container': {
             'command': None,
@@ -133,8 +136,18 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, dump_format, 
 
         dump(dumped_job_data, dump_format, dumped_job_file)
 
+        environment = env_vars(preserve_environment)
+
         ccagent_data = docker_manager.run_container(
-            container_name, image, command, ro_mappings, rw_mappings, mapped_work_dir, leave_container, None
+            container_name,
+            image,
+            command,
+            ro_mappings,
+            rw_mappings,
+            mapped_work_dir,
+            leave_container,
+            None,
+            environment
         )
         result['container']['ccagent'] = ccagent_data
         docker_result_check(ccagent_data)

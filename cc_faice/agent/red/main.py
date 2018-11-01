@@ -8,8 +8,9 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation
 
-from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars, DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
-from cc_faice.commons.gpu_info import GPURequirement, get_gpus
+from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars,\
+                                    DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
+from cc_core.commons.gpu_info import GPURequirement, match_gpus, get_devices
 
 
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
@@ -108,6 +109,9 @@ def get_gpu_requirements(red_data):
         elif type(gpus_reqs) is list:
             for gpu_req in gpus_reqs:
                 requirements.append(GPURequirement(**gpu_req))
+    else:
+        # If no requirements are supplied only allocate one GPU
+        requirements.append(GPURequirement())
 
     return requirements
 
@@ -152,8 +156,10 @@ def run(
         docker_manager = DockerManager()
 
         runtime = get_runtime(red_data)
+
         gpu_requirements = get_gpu_requirements(red_data)
-        gpus = get_gpus(red_data['container']['engine'], gpu_requirements)
+        gpu_devices = get_devices(red_data['container']['engine'])
+        gpus = match_gpus(gpu_devices, gpu_requirements)
 
         ram = red_data['container']['settings'].get('ram')
         image = red_data['container']['settings']['image']['url']

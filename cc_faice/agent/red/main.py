@@ -10,7 +10,7 @@ from cc_core.commons.engines import engine_validation
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars,\
                                     DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
-from cc_core.commons.gpu_info import GPURequirement, match_gpus, get_devices
+from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
 
 
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
@@ -90,32 +90,6 @@ def get_runtime(red_data):
     return runtime
 
 
-def get_gpu_requirements(red_data):
-    """
-    Extracts the GPU requirements as list of GPURequirements.
-
-    :param red_data: The yaml data of the job file as python dictionary
-    :return: A list of GPURequirements
-    """
-    requirements = []
-
-    gpus_reqs = red_data['container']['settings'].get('gpus')
-    if gpus_reqs:
-        if type(gpus_reqs) is dict:
-            count = gpus_reqs.get('count')
-            if count:
-                for i in range(count):
-                    requirements.append(GPURequirement())
-        elif type(gpus_reqs) is list:
-            for gpu_req in gpus_reqs:
-                requirements.append(GPURequirement(**gpu_req))
-    else:
-        # If no requirements are supplied only allocate one GPU
-        requirements.append(GPURequirement())
-
-    return requirements
-
-
 def run(
         red_file,
         fill_file,
@@ -157,7 +131,7 @@ def run(
 
         runtime = get_runtime(red_data)
 
-        gpu_requirements = get_gpu_requirements(red_data)
+        gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
         gpu_devices = get_devices(red_data['container']['engine'])
         gpus = match_gpus(gpu_devices, gpu_requirements)
 

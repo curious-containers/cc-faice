@@ -5,6 +5,7 @@ from cc_core.commons.cwl import location
 from cc_core.commons.files import read
 from cc_core.commons.exceptions import AgentError
 from cc_core.commons.engines import DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
+from cc_core.commons.gpu_info import set_nvidia_environment_variables
 
 
 def docker_result_check(ccagent_data):
@@ -66,21 +67,6 @@ def input_volume_mappings(job_data, dumped_job_data, input_dir):
     return volumes
 
 
-def nvidia_environment_variables(environment, gpus):
-    """
-    Updates a dictionary containing environment variables to setup Nvidia-GPUs.
-
-    :param environment: The environment variables to update
-    :param gpus: A list of GPUDevices.
-    """
-
-    if gpus:
-        nvidia_visible_devices = ""
-        for gpu in gpus:
-            nvidia_visible_devices += "{},".format(gpu.device_id)
-        environment["NVIDIA_VISIBLE_DEVICES"] = nvidia_visible_devices
-
-
 def env_vars(preserve_environment):
     if preserve_environment is None:
         return {}
@@ -136,7 +122,7 @@ class DockerManager:
             mem_limit = '{}m'.format(ram)
 
         if runtime == NVIDIA_DOCKER_RUNTIME:
-            nvidia_environment_variables(environment, gpus)
+            set_nvidia_environment_variables(environment, map(lambda gpu: gpu.device_id, gpus))
 
         c = self._client.containers.create(
             image,

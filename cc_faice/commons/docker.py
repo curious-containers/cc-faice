@@ -4,10 +4,7 @@ import docker
 from cc_core.commons.cwl import location
 from cc_core.commons.files import read
 from cc_core.commons.exceptions import AgentError
-
-
-DEFAULT_DOCKER_RUNTIME = 'runc'
-NVIDIA_DOCKER_RUNTIME = 'nvidia'
+from cc_core.commons.engines import DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
 
 
 def docker_result_check(ccagent_data):

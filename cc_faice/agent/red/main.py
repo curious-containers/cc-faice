@@ -6,10 +6,9 @@ from cc_core.commons.files import load_and_read, dump, dump_print, file_extensio
 from cc_core.commons.exceptions import exception_format, RedValidationError
 from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
-from cc_core.commons.engines import engine_validation
+from cc_core.commons.engines import engine_validation, engine_to_runtime
 
-from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars,\
-                                    DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
+from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
 
 
@@ -83,11 +82,7 @@ def get_runtime(red_data):
     :return: A String specifing the docker runtime (one of: 'docker', 'nvidia-docker')
     """
 
-    runtime = DEFAULT_DOCKER_RUNTIME
-    if red_data['container']['engine'] == 'nvidia-docker':
-        runtime = NVIDIA_DOCKER_RUNTIME
-
-    return runtime
+    return engine_to_runtime(red_data['container']['engine'])
 
 
 def run(

@@ -100,9 +100,15 @@ class DockerManager:
                       leave_container,
                       ram,
                       runtime=DEFAULT_DOCKER_RUNTIME,
-                      gpus=[],
-                      environment={}):
+                      gpus=None,
+                      environment=None):
         binds = {}
+
+        if environment is None:
+            environment = {}
+
+        if gpus is None:
+            gpus = []
 
         for host_vol, container_vol in ro_mappings:
             binds[host_vol] = {

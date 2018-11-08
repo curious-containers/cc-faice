@@ -1,4 +1,5 @@
 import os
+import stat
 from uuid import uuid4
 from argparse import ArgumentParser
 
@@ -209,8 +210,12 @@ def run(
             container_result['volumes']['readOnly'] = ro_mappings
             container_result['volumes']['readWrite'] = rw_mappings
 
+            old_work_dir_permissions = None
             if not os.path.exists(work_dir):
                 os.makedirs(work_dir)
+            if os.getuid() != 1000:
+                old_work_dir_permissions = os.stat(work_dir).st_mode
+                os.chmod(work_dir, old_work_dir_permissions | stat.S_IWOTH)
 
             environment = env_vars(preserve_environment)
 
@@ -227,6 +232,8 @@ def run(
                 gpus=gpus,
                 environment=environment
             )
+            if old_work_dir_permissions is not None:
+                os.chmod(work_dir, old_work_dir_permissions)
             container_result['ccagent'] = ccagent_data
             docker_result_check(ccagent_data)
         except:

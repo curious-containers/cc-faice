@@ -75,17 +75,6 @@ def main():
     return 1
 
 
-def get_runtime(red_data):
-    """
-    Extracts the docker runtime string.
-
-    :param red_data: The yaml data of the job file as python dictionary
-    :return: A String specifing the docker runtime (one of: 'docker', 'nvidia-docker')
-    """
-
-    return engine_to_runtime(red_data['container']['engine'])
-
-
 def run(
         red_file,
         fill_file,
@@ -125,7 +114,7 @@ def run(
 
         docker_manager = DockerManager()
 
-        runtime = get_runtime(red_data)
+        runtime = engine_to_runtime(red_data['container']['engine'])
 
         gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
         gpu_devices = get_devices(red_data['container']['engine'])

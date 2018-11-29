@@ -22,19 +22,21 @@ def dump_job(job_data, mapped_input_dir):
             val = []
             for index, i in enumerate(arg):
                 if isinstance(i, dict):
-                    path = os.path.join(mapped_input_dir, '{}_{}'.format(key, index))
-                    val.append({
-                        'class': 'File',
-                        'path': path
-                    })
+                    if (i.get('class') == 'File') or (i.get('class') == 'Directory'):
+                        path = os.path.join(mapped_input_dir, '{}_{}'.format(key, index))
+                        val.append({
+                            'class': i['class'],
+                            'path': path
+                        })
                 else:
                     val.append(i)
         elif isinstance(arg, dict):
-            path = os.path.join(mapped_input_dir, key)
-            val = {
-                'class': 'File',
-                'path': path
-            }
+            if (arg.get('class') == 'File') or (arg.get('class') == 'Directory'):
+                path = os.path.join(mapped_input_dir, key)
+                val = {
+                    'class': arg['class'],
+                    'path': path
+                }
 
         job[key] = val
 

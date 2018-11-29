@@ -24,10 +24,14 @@ def dump_job(job_data, mapped_input_dir):
                 if isinstance(i, dict):
                     if (i.get('class') == 'File') or (i.get('class') == 'Directory'):
                         path = os.path.join(mapped_input_dir, '{}_{}'.format(key, index))
-                        val.append({
+                        elem = {
                             'class': i['class'],
                             'path': path
-                        })
+                        }
+                        listing = i.get('listing')
+                        if listing:
+                            elem['listing'] = listing
+                        val.append(elem)
                 else:
                     val.append(i)
         elif isinstance(arg, dict):
@@ -37,6 +41,9 @@ def dump_job(job_data, mapped_input_dir):
                     'class': arg['class'],
                     'path': path
                 }
+                listing = arg.get('listing')
+                if listing:
+                    val['listing'] = listing
 
         job[key] = val
 

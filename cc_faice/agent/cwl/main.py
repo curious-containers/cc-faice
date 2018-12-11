@@ -4,13 +4,15 @@ from argparse import ArgumentParser
 
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
 from cc_core.commons.cwl import cwl_validation
-from cc_core.commons.exceptions import exception_format
+from cc_core.commons.exceptions import exception_format, print_exception
 
 from cc_faice.commons.docker import dump_job, input_volume_mappings, DockerManager, docker_result_check, env_vars
 
-
 DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its corresponding JOB_FILE in a container with ' \
               'ccagent (cc_core.agent.cwl).'
+
+
+AGENT_DUMP_FORMAT = 'json'
 
 
 def attach_args(parser):
@@ -40,8 +42,8 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-                             'is "yaml".'
+        help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
+             'is no output.'
     )
     parser.add_argument(
         '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
@@ -55,7 +57,10 @@ def main():
     args = parser.parse_args()
 
     result = run(**args.__dict__)
-    dump_print(result, args.dump_format)
+
+    dump_format = args.__dict__.get('dump_format')
+    if dump_format:
+        dump_print(result, dump_format)
 
     if result['state'] == 'succeeded':
         return 0
@@ -63,7 +68,15 @@ def main():
     return 1
 
 
-def run(cwl_file, job_file, outdir, disable_pull, leave_container, preserve_environment, dump_format, dump_prefix):
+def run(cwl_file,
+        job_file,
+        outdir,
+        disable_pull,
+        leave_container,
+        preserve_environment,
+        dump_prefix,
+        **_
+        ):
     result = {
         'container': {
             'command': None,
@@ -84,7 +97,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, preserve_envi
 
         cwl_validation(cwl_data, job_data, docker_requirement=True)
 
-        ext = file_extension(dump_format)
+        ext = file_extension(AGENT_DUMP_FORMAT)
         input_dir = os.path.split(os.path.expanduser(job_file))[0]
         work_dir = 'work'
         dumped_job_file = '{}job.{}'.format(dump_prefix, ext)
@@ -119,7 +132,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, preserve_envi
             'cwl',
             mapped_cwl_file,
             mapped_job_file,
-            '--dump-format={}'.format(dump_format)
+            '--dump-format={}'.format(AGENT_DUMP_FORMAT)
         ]
 
         if outdir:
@@ -134,7 +147,7 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, preserve_envi
         if not os.path.exists(work_dir):
             os.makedirs(work_dir)
 
-        dump(dumped_job_data, dump_format, dumped_job_file)
+        dump(dumped_job_data, AGENT_DUMP_FORMAT, dumped_job_file)
 
         environment = env_vars(preserve_environment)
 
@@ -149,10 +162,11 @@ def run(cwl_file, job_file, outdir, disable_pull, leave_container, preserve_envi
             None,
             environment
         )
-        result['container']['ccagent'] = ccagent_data
+        result['container']['ccagent'] = ccagent_data[0]
         docker_result_check(ccagent_data)
-    except:
+    except Exception as e:
         result['debugInfo'] = exception_format()
         result['state'] = 'failed'
+        print_exception(e)
 
     return result

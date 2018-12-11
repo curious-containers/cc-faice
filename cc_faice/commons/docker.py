@@ -9,8 +9,8 @@ from cc_core.commons.gpu_info import set_nvidia_environment_variables
 
 
 def docker_result_check(ccagent_data):
-    if ccagent_data['state'] != 'succeeded':
-        raise AgentError('ccagent did not succeed')
+    if ccagent_data[0]['state'] != 'succeeded':
+        raise AgentError('ccagent did not succeed\n\nError of Agent:\n{}'.format(ccagent_data[1]))
 
 
 def dump_job(job_data, mapped_input_dir):
@@ -154,9 +154,11 @@ class DockerManager:
 
         c.start()
         c.wait()
-        std_out = c.logs()
+
+        std_out = c.logs(stdout=True, stderr=False)
+        std_err = c.logs(stdout=False, stderr=True)
 
         if not leave_container:
             c.remove()
 
-        return read(std_out.decode('utf-8'), 'CCAGENT_OUTPUT')
+        return read(std_out.decode('utf-8'), 'CCAGENT_OUTPUT'), std_err.decode('utf-8')

@@ -4,7 +4,7 @@ from uuid import uuid4
 from argparse import ArgumentParser
 
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
-from cc_core.commons.exceptions import exception_format, RedValidationError
+from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception
 from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
@@ -12,8 +12,8 @@ from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
 
-
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
+AGENT_DUMP_FORMAT = 'json'
 
 
 def attach_args(parser):
@@ -48,8 +48,8 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-                             'is "yaml".'
+        help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
+             'is no output.'
     )
     parser.add_argument(
         '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
@@ -67,7 +67,10 @@ def main():
     args = parser.parse_args()
 
     result = run(**args.__dict__)
-    dump_print(result, args.dump_format)
+
+    dump_format = args.__dict__.get('dump_format')
+    if dump_format:
+        dump_print(result, dump_format)
 
     if result['state'] == 'succeeded':
         return 0
@@ -75,18 +78,17 @@ def main():
     return 1
 
 
-def run(
-        red_file,
+def run(red_file,
         fill_file,
         outdir,
         disable_pull,
         leave_container,
         preserve_environment,
         non_interactive,
-        dump_format,
         dump_prefix,
-        ignore_outputs
-):
+        ignore_outputs,
+        **_
+        ):
     result = {
         'containers': [],
         'debugInfo': None,
@@ -94,7 +96,7 @@ def run(
     }
 
     secret_values = None
-    ext = file_extension(dump_format)
+    ext = file_extension(AGENT_DUMP_FORMAT)
     dumped_fill_file = '{}fill.{}'.format(dump_prefix, ext)
 
     try:
@@ -110,7 +112,7 @@ def run(
         template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
 
         if template_keys_and_values:
-            dump(template_keys_and_values, dump_format, dumped_fill_file)
+            dump(template_keys_and_values, AGENT_DUMP_FORMAT, dumped_fill_file)
 
         docker_manager = DockerManager()
 
@@ -128,13 +130,15 @@ def run(
         if not disable_pull:
             docker_manager.pull(image, auth=registry_auth)
 
-    except RedValidationError:
+    except RedValidationError as e:
         result['debugInfo'] = exception_format(secret_values=secret_values)
         result['state'] = 'failed'
+        print_exception(e)
         return result
-    except:
+    except Exception as e:
         result['debugInfo'] = exception_format()
         result['state'] = 'failed'
+        print_exception(e)
         return result
 
     batches = [None]
@@ -171,7 +175,7 @@ def run(
                 'ccagent',
                 'red',
                 mapped_red_file,
-                '--dump-format={}'.format(dump_format)
+                '--dump-format={}'.format(AGENT_DUMP_FORMAT)
             ]
 
             if batch is not None:
@@ -223,12 +227,13 @@ def run(
             )
             if old_work_dir_permissions is not None:
                 os.chmod(work_dir, old_work_dir_permissions)
-            container_result['ccagent'] = ccagent_data
+            container_result['ccagent'] = ccagent_data[0]
             docker_result_check(ccagent_data)
-        except:
+        except Exception as e:
             container_result['debugInfo'] = exception_format()
             container_result['state'] = 'failed'
             result['state'] = 'failed'
+            print_exception(e)
             break
 
     if os.path.exists(dumped_fill_file):

@@ -1,11 +1,14 @@
 import os
 import docker
+from docker.errors import DockerException
 
 from cc_core.commons.cwl import location
 from cc_core.commons.files import read
 from cc_core.commons.exceptions import AgentError
 from cc_core.commons.engines import DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
 from cc_core.commons.gpu_info import set_nvidia_environment_variables
+
+DOCKER_SOCKET = 'unix://var/run/docker.sock'
 
 
 def docker_result_check(ccagent_data):
@@ -91,10 +94,14 @@ def env_vars(preserve_environment):
 
 class DockerManager:
     def __init__(self):
-        self._client = docker.DockerClient(
-            base_url='unix://var/run/docker.sock',
-            version='auto'
-        )
+        try:
+            self._client = docker.DockerClient(
+                base_url=DOCKER_SOCKET,
+                version='auto'
+            )
+        except DockerException as e:
+            raise DockerException('Could not connect to docker daemon at "{}". Is the docker daemon running?'
+                                  .format(DOCKER_SOCKET))
 
     def pull(self, image, auth=None):
         self._client.images.pull(image, auth_config=auth)

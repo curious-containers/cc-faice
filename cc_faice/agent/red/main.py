@@ -13,22 +13,29 @@ from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
 
 DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
-AGENT_DUMP_FORMAT = 'json'
 
 
 def attach_args(parser):
     parser.add_argument(
-        'red_file', action='store', type=str, metavar='RED_FILE',
-        help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
+        'red', action='store', type=str, metavar='FILE_PATH_OR_URL',
+        help='RED FILE (json or yaml) containing an experiment description as local PATH or http URL.'
     )
     parser.add_argument(
-        '--fill-file', action='store', type=str, metavar='FILL_FILE',
-        help='FILL_FILE (json or yaml) containing key-value pairs for template variables in RED_FILE as '
-             'local path or http url.'
+        '-v', '--variables', action='store', type=str, metavar='FILE_PATH_OR_URL',
+        help='FILE (json or yaml) containing key-value pairs for variables in RED FILE as '
+             'local PATH or http URL.'
     )
     parser.add_argument(
-        '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
-        help='Output directory, default current directory. Will be passed to ccagent in the container.'
+        '-o', '--outputs', action='store_true',
+        help='Enable connectors specified in the RED FILE outputs section.'
+    )
+    parser.add_argument(
+        '-m', '--meta', action='store_true',
+        help='Write meta data, including detailed exceptions, to stdout.'
+    )
+    parser.add_argument(
+        '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
+        help='Specify meta data FORMAT as one of [json, yaml, yml]. Default is yaml.'
     )
     parser.add_argument(
         '--disable-pull', action='store_true',
@@ -44,20 +51,11 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--non-interactive', action='store_true',
-        help='Do not ask for jinja template values interactively.'
+        help='Do not ask for RED variables interactively.'
     )
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-             'is no output.'
-    )
-    parser.add_argument(
-        '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
-        help='Name prefix for files dumped to storage, default is "dumped_".'
-    )
-    parser.add_argument(
-        '--ignore-outputs', action='store_true',
-        help='Ignore RED connectors specified in RED_FILE outputs section.'
+        '--prefix', action='store', type=str, metavar='PREFIX', default='faice_',
+        help='PREFIX for files dumped to storage, default is "faice_".'
     )
 
 
@@ -68,9 +66,10 @@ def main():
 
     result = run(**args.__dict__)
 
-    dump_format = args.__dict__.get('dump_format')
-    if dump_format:
-        dump_print(result, dump_format)
+    format = args.__dict__['format']
+    meta = args.__dict__['meta']
+    if meta:
+        dump_print(result, format)
 
     if result['state'] == 'succeeded':
         return 0
@@ -78,15 +77,15 @@ def main():
     return 1
 
 
-def run(red_file,
-        fill_file,
-        outdir,
+def run(red,
+        variables,
+        outputs,
+        format,
         disable_pull,
         leave_container,
         preserve_environment,
         non_interactive,
-        dump_prefix,
-        ignore_outputs,
+        prefix,
         **_
         ):
     result = {
@@ -96,23 +95,24 @@ def run(red_file,
     }
 
     secret_values = None
-    ext = file_extension(AGENT_DUMP_FORMAT)
-    dumped_fill_file = '{}fill.{}'.format(dump_prefix, ext)
+    ext = file_extension(format)
+    dumped_variables_file = '{}variables.{}'.format(prefix, ext)
 
     try:
-        red_data = load_and_read(red_file, 'RED_FILE')
+        red_data = load_and_read(red, 'RED FILE')
+        ignore_outputs = not outputs
         red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
 
-        fill_data = None
-        if fill_file:
-            fill_data = load_and_read(fill_file, 'FILL_FILE')
-            fill_validation(fill_data)
+        variables_data = None
+        if variables:
+            variables_data = load_and_read(variables, 'VARIABLES FILE')
+            fill_validation(variables_data)
 
-        template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
+        template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, variables_data, non_interactive)
 
         if template_keys_and_values:
-            dump(template_keys_and_values, AGENT_DUMP_FORMAT, dumped_fill_file)
+            dump(template_keys_and_values, format, dumped_variables_file)
 
         docker_manager = DockerManager()
 
@@ -160,13 +160,13 @@ def run(red_file,
         result['containers'].append(container_result)
         try:
             if batch is None:
-                work_dir = 'work'
+                outputs_dir = 'outputs'
             else:
-                work_dir = 'work_{}'.format(batch)
+                outputs_dir = 'outputs_{}'.format(batch)
 
-            mapped_work_dir = '/opt/cc/work'
+            mapped_outputs_dir = '/opt/cc/outputs'
             mapped_red_file = '/opt/cc/red.{}'.format(ext)
-            mapped_fill_file = '/opt/cc/fill.{}'.format(ext)
+            mapped_variables_file = '/opt/cc/variables.{}'.format(ext)
 
             container_name = str(uuid4())
             container_result['name'] = container_name
@@ -175,40 +175,45 @@ def run(red_file,
                 'ccagent',
                 'red',
                 mapped_red_file,
-                '--dump-format={}'.format(AGENT_DUMP_FORMAT)
+                '--meta',
+                '--format=json',
+                '--no-rm'
             ]
 
             if batch is not None:
                 command.append('--batch={}'.format(batch))
 
-            if outdir:
-                command.append('--outdir={}'.format(outdir))
-
-            if ignore_outputs:
-                command.append('--ignore-outputs')
+            if outputs:
+                command.append('--outputs')
 
             if template_keys_and_values:
-                command.append('--fill-file={}'.format(mapped_fill_file))
+                command.append('--variables={}'.format(mapped_variables_file))
 
             command = ' '.join([str(c) for c in command])
 
             container_result['command'] = command
 
-            ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
-            rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
+            ro_mappings = [[os.path.abspath(red), mapped_red_file]]
+            rw_mappings = []
+
+            work_dir = None
+            old_outputs_dir_permissions = None
+
+            if not outputs:
+                rw_mappings.append([os.path.abspath(outputs_dir), mapped_outputs_dir])
+                work_dir = mapped_outputs_dir
+
+                if not os.path.exists(outputs_dir):
+                    os.makedirs(outputs_dir)
+                if os.getuid() != 1000:
+                    old_outputs_dir_permissions = os.stat(outputs_dir).st_mode
+                    os.chmod(outputs_dir, old_outputs_dir_permissions | stat.S_IWOTH)
 
             if template_keys_and_values:
-                rw_mappings.append([os.path.abspath(dumped_fill_file), mapped_fill_file])
+                rw_mappings.append([os.path.abspath(dumped_variables_file), mapped_variables_file])
 
             container_result['volumes']['readOnly'] = ro_mappings
             container_result['volumes']['readWrite'] = rw_mappings
-
-            old_work_dir_permissions = None
-            if not os.path.exists(work_dir):
-                os.makedirs(work_dir)
-            if os.getuid() != 1000:
-                old_work_dir_permissions = os.stat(work_dir).st_mode
-                os.chmod(work_dir, old_work_dir_permissions | stat.S_IWOTH)
 
             environment = env_vars(preserve_environment)
 
@@ -218,15 +223,15 @@ def run(red_file,
                 command=command,
                 ro_mappings=ro_mappings,
                 rw_mappings=rw_mappings,
-                work_dir=mapped_work_dir,
+                work_dir=work_dir,
                 leave_container=leave_container,
                 ram=ram,
                 runtime=runtime,
                 gpus=gpus,
                 environment=environment
             )
-            if old_work_dir_permissions is not None:
-                os.chmod(work_dir, old_work_dir_permissions)
+            if old_outputs_dir_permissions is not None:
+                os.chmod(outputs_dir, old_outputs_dir_permissions)
             container_result['ccagent'] = ccagent_data[0]
             docker_result_check(ccagent_data)
         except Exception as e:
@@ -236,7 +241,7 @@ def run(red_file,
             print_exception(e)
             break
 
-    if os.path.exists(dumped_fill_file):
-        os.remove(dumped_fill_file)
+    if os.path.exists(dumped_variables_file):
+        os.remove(dumped_variables_file)
 
     return result

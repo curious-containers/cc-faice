@@ -12,21 +12,22 @@ DESCRIPTION = 'Run a CommandLineTool as described in a CWL_FILE and its correspo
               'ccagent (cc_core.agent.cwl).'
 
 
-AGENT_DUMP_FORMAT = 'json'
-
-
 def attach_args(parser):
     parser.add_argument(
-        'cwl_file', action='store', type=str, metavar='CWL_FILE',
-        help='CWL_FILE (json or yaml) containing a CLI description as local path or http url.'
+        'cwl', action='store', type=str, metavar='FILE_PATH_OR_URL',
+        help='CWL FILE containing a CLI description (json/yaml) as local PATH or http URL.'
     )
     parser.add_argument(
-        'job_file', action='store', type=str, metavar='JOB_FILE',
-        help='JOB_FILE (json or yaml) in the CWL job format as local path or http url.'
+        'job', action='store', type=str, metavar='FILE_PATH_OR_URL',
+        help='JOB FILE in the CWL job format (json/yaml) as local PATH or http URL.'
     )
     parser.add_argument(
-        '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
-        help='Output directory, default current directory. Will be passed to ccagent in the container.'
+        '-m', '--meta', action='store_true',
+        help='Write meta data, including detailed exceptions, to stdout.'
+    )
+    parser.add_argument(
+        '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
+        help='Specify meta data FORMAT as one of [json, yaml, yml]. Default is yaml.'
     )
     parser.add_argument(
         '--disable-pull', action='store_true',
@@ -41,13 +42,8 @@ def attach_args(parser):
         help='Preserve specific environment variables when running container. May be provided multiple times.'
     )
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-             'is no output.'
-    )
-    parser.add_argument(
-        '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
-        help='Name prefix for files dumped to storage, default is "dumped_".'
+        '--prefix', action='store', type=str, metavar='PREFIX', default='faice_',
+        help='PREFIX for files dumped to storage, default is "faice_".'
     )
 
 
@@ -58,9 +54,10 @@ def main():
 
     result = run(**args.__dict__)
 
-    dump_format = args.__dict__.get('dump_format')
-    if dump_format:
-        dump_print(result, dump_format)
+    format = args.__dict__['format']
+    meta = args.__dict__['meta']
+    if meta:
+        dump_print(result, format)
 
     if result['state'] == 'succeeded':
         return 0
@@ -68,13 +65,13 @@ def main():
     return 1
 
 
-def run(cwl_file,
-        job_file,
-        outdir,
+def run(cwl,
+        job,
+        format,
         disable_pull,
         leave_container,
         preserve_environment,
-        dump_prefix,
+        prefix,
         **_
         ):
     result = {
@@ -92,18 +89,18 @@ def run(cwl_file,
     }
 
     try:
-        cwl_data = load_and_read(cwl_file, 'CWL_FILE')
-        job_data = load_and_read(job_file, 'JOB_FILE')
+        cwl_data = load_and_read(cwl, 'CWL FILE')
+        job_data = load_and_read(job, 'JOB FILE')
 
         cwl_validation(cwl_data, job_data, docker_requirement=True)
 
-        ext = file_extension(AGENT_DUMP_FORMAT)
-        input_dir = os.path.split(os.path.expanduser(job_file))[0]
-        work_dir = 'work'
-        dumped_job_file = '{}job.{}'.format(dump_prefix, ext)
+        ext = file_extension(format)
+        input_dir = os.path.split(os.path.expanduser(job))[0]
+        outputs_dir = 'outputs'
+        dumped_job_file = '{}job.{}'.format(prefix, ext)
 
         mapped_input_dir = '/opt/cc/inputs'
-        mapped_work_dir = '/opt/cc/work'
+        mapped_outputs_dir = '/opt/cc/outputs'
         mapped_cwl_file = '/opt/cc/cli.cwl'
         mapped_job_file = '/opt/cc/job.{}'.format(ext)
 
@@ -111,10 +108,10 @@ def run(cwl_file,
 
         ro_mappings = input_volume_mappings(job_data, dumped_job_data, input_dir)
         ro_mappings += [
-            [os.path.abspath(cwl_file), mapped_cwl_file],
+            [os.path.abspath(cwl), mapped_cwl_file],
             [os.path.abspath(dumped_job_file), mapped_job_file]
         ]
-        rw_mappings = [[os.path.abspath(work_dir), mapped_work_dir]]
+        rw_mappings = [[os.path.abspath(outputs_dir), mapped_outputs_dir]]
 
         result['container']['volumes']['readOnly'] = ro_mappings
         result['container']['volumes']['readWrite'] = rw_mappings
@@ -132,22 +129,19 @@ def run(cwl_file,
             'cwl',
             mapped_cwl_file,
             mapped_job_file,
-            '--dump-format={}'.format(AGENT_DUMP_FORMAT)
+            '--meta',
+            '--format=json',
+            '--no-rm'
         ]
-
-        if outdir:
-            command += [
-                '--outdir={}'.format(outdir)
-            ]
 
         command = ' '.join([str(c) for c in command])
 
         result['container']['command'] = command
 
-        if not os.path.exists(work_dir):
-            os.makedirs(work_dir)
+        if not os.path.exists(outputs_dir):
+            os.makedirs(outputs_dir)
 
-        dump(dumped_job_data, AGENT_DUMP_FORMAT, dumped_job_file)
+        dump(dumped_job_data, format, dumped_job_file)
 
         environment = env_vars(preserve_environment)
 
@@ -157,7 +151,7 @@ def run(cwl_file,
             command,
             ro_mappings,
             rw_mappings,
-            mapped_work_dir,
+            mapped_outputs_dir,
             leave_container,
             None,
             environment

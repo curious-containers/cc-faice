@@ -177,7 +177,7 @@ def run(red,
                 mapped_red_file,
                 '--meta',
                 '--format=json',
-                '--no-rm'
+                '--leave-directories'
             ]
 
             if batch is not None:

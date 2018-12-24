@@ -131,7 +131,7 @@ def run(cwl,
             mapped_job_file,
             '--meta',
             '--format=json',
-            '--no-rm'
+            '--leave-directories'
         ]
 
         command = ' '.join([str(c) for c in command])

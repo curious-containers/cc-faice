@@ -12,17 +12,17 @@ from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
 
-DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent (cc_core.agent.cwl_io).'
+DESCRIPTION = 'Run an experiment as described in a RED_FILE in a container with ccagent red.'
 
 
 def attach_args(parser):
     parser.add_argument(
-        'red', action='store', type=str, metavar='FILE_PATH_OR_URL',
+        'red_file', action='store', type=str, metavar='RED_FILE',
         help='RED FILE (json or yaml) containing an experiment description as local PATH or http URL.'
     )
     parser.add_argument(
-        '-v', '--variables', action='store', type=str, metavar='FILE_PATH_OR_URL',
-        help='FILE (json or yaml) containing key-value pairs for variables in RED FILE as '
+        '-v', '--variables', action='store', type=str, metavar='VARIABLES_FILE',
+        help='VARIABLES_FILE (json or yaml) containing key-value pairs for variables in RED_FILE as '
              'local PATH or http URL.'
     )
     parser.add_argument(
@@ -77,8 +77,8 @@ def main():
     return 1
 
 
-def run(red,
-        variables,
+def run(red_file,
+        variables_file,
         outputs,
         format,
         disable_pull,
@@ -99,14 +99,14 @@ def run(red,
     dumped_variables_file = '{}variables.{}'.format(prefix, ext)
 
     try:
-        red_data = load_and_read(red, 'RED FILE')
+        red_data = load_and_read(red_file, 'RED_FILE')
         ignore_outputs = not outputs
         red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
 
         variables_data = None
-        if variables:
-            variables_data = load_and_read(variables, 'VARIABLES FILE')
+        if variables_file:
+            variables_data = load_and_read(variables_file, 'VARIABLES_FILE')
             fill_validation(variables_data)
 
         template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, variables_data, non_interactive)
@@ -193,7 +193,7 @@ def run(red,
 
             container_result['command'] = command
 
-            ro_mappings = [[os.path.abspath(red), mapped_red_file]]
+            ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
             rw_mappings = []
 
             work_dir = None

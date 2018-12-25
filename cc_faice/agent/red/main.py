@@ -78,7 +78,7 @@ def main():
 
 
 def run(red_file,
-        variables_file,
+        variables,
         outputs,
         format,
         disable_pull,
@@ -105,8 +105,8 @@ def run(red_file,
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
 
         variables_data = None
-        if variables_file:
-            variables_data = load_and_read(variables_file, 'VARIABLES_FILE')
+        if variables:
+            variables_data = load_and_read(variables, 'VARIABLES_FILE')
             fill_validation(variables_data)
 
         template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, variables_data, non_interactive)

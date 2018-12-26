@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 
 
 DESCRIPTION = 'Run a simple http file server for debugging purposes. USE CAREFULLY: this server does not enable ' \
-              'encryption and does not verify authorization credentials.'
+              'encryption and does not verify credentials for authorization.'
 
 
 def attach_args(parser):
@@ -42,7 +42,7 @@ def run(bind_host, bind_port, updir, downdir):
     def get_file(file_name):
         """
         .. :quickref: API; Download file
-        Download a file specified as <file_name> from DOWNLOAD_DIR.
+        Download a file specified as <file_name> from DOWNDIR.
 
         .. sourcecode:: http
             GET /<file_name> HTTP/1.1
@@ -55,7 +55,7 @@ def run(bind_host, bind_port, updir, downdir):
     def post_file(file_name):
         """
         .. :quickref: API; Upload file
-        Upload a file specified as <file_name> to UPLOAD_DIR.
+        Upload a file specified as <file_name> to UPDIR.
 
         .. sourcecode:: http
             POST /<file_name> HTTP/1.1

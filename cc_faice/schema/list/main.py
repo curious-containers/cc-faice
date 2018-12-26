@@ -9,9 +9,8 @@ DESCRIPTION = 'List of all available jsonschemas defined in cc-core.'
 
 def attach_args(parser):
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-                             'is "yaml".'
+        '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
+        help='Specify FORMAT for generated data as one of [json, yaml, yml]. Default is yaml.'
     )
 
 
@@ -23,5 +22,5 @@ def main():
     return 0
 
 
-def run(dump_format):
-    dump_print({'schemas': list(schemas.keys())}, dump_format)
+def run(format):
+    dump_print({'schemas': list(schemas.keys())}, format)

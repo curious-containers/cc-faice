@@ -9,35 +9,30 @@ from cc_faice.commons.red import dump_agent_cwl, dump_agent_job, dump_app_cwl
 from cc_faice.commons.docker import dump_job
 
 
-DESCRIPTION = 'Export RED_FILE to standard CWL compatible with cwltool.'
+DESCRIPTION = 'Export REDFILE to standard CWL compatible with cwltool.'
 
 
 def attach_args(parser):
     parser.add_argument(
-        'red_file', action='store', type=str, metavar='RED_FILE',
-        help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
+        'red_file', action='store', type=str, metavar='REDFILE',
+        help='REDFILE (json or yaml) containing an experiment description as local PATH or http URL.'
     )
     parser.add_argument(
-        '--fill-file', action='store', type=str, metavar='FILL_FILE',
-        help='FILL_FILE (json or yaml) containing key-value pairs for template variables in RED_FILE as '
-             'local path or http url.'
+        '-v', '--variables', action='store', type=str, metavar='VARFILE',
+        help='VARFILE (json or yaml) containing key-value pairs for variables in REDFILE as '
+             'local PATH or http URL.'
     )
     parser.add_argument(
-        '--outdir', action='store', type=str, metavar='OUTPUT_DIR',
-        help='Output directory, default current directory. Will be passed to ccagent in the container.'
+        '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
+        help='Specify FORMAT for generated data as one of [json, yaml, yml]. Default is yaml.'
     )
     parser.add_argument(
         '--non-interactive', action='store_true',
-        help='Do not ask for jinja template values interactively.'
+        help='Do not ask for RED variables interactively.'
     )
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-                             'is "yaml".'
-    )
-    parser.add_argument(
-        '--dump-prefix', action='store', type=str, metavar='DUMP_PREFIX', default='dumped_',
-        help='Name prefix for files dumped to storage, default is "_dumped".'
+        '--prefix', action='store', type=str, metavar='PREFIX', default='faice_',
+        help='PREFIX for files dumped to storage, default is "faice_".'
     )
 
 
@@ -48,14 +43,15 @@ def main():
     return run(**args.__dict__)
 
 
-def run(red_file, fill_file, outdir, non_interactive, dump_format, dump_prefix):
-    red_data = load_and_read(red_file, 'RED_FILE')
+def run(red_file, variables, non_interactive, format, prefix):
+    outdir = None  # removed option
+    red_data = load_and_read(red_file, 'REDFILE')
     red_validation(red_data, False, container_requirement=True)
     engine_validation(red_data, 'container', ['docker'], 'faice export')
 
     fill_data = None
-    if fill_file:
-        fill_data = load_and_read(fill_file, 'FILL_FILE')
+    if variables:
+        fill_data = load_and_read(variables, 'VARFILE')
         fill_validation(fill_data)
 
     template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
@@ -69,33 +65,33 @@ def run(red_file, fill_file, outdir, non_interactive, dump_format, dump_prefix):
 
     if 'batches' in red_data:
         wrapped_print([
-            'ERROR: cannot export RED_FILE containing batches.',
+            'ERROR: cannot export REDFILE containing batches.',
             'Use "faice convert batches" to separate batches into individual files, then use "faice export" on the '
             'generated files.',
         ], error=True)
         return 1
 
-    ext = file_extension(dump_format)
-    dumped_app_cwl_file = '{}app-cli.cwl'.format(dump_prefix)
-    dumped_app_red_file = '{}app-red.{}'.format(dump_prefix, ext)
-    dumped_app_job_file = '{}app-job.{}'.format(dump_prefix, ext)
-    dumped_agent_cwl_file = '{}agent-cli.cwl'.format(dump_prefix)
-    dumped_agent_job_file = '{}agent-job.{}'.format(dump_prefix, ext)
-    dumped_agent_job_ignore_output_file = '{}agent-job-ignore-output.{}'.format(dump_prefix, ext)
+    ext = file_extension(format)
+    dumped_app_cwl_file = '{}app-cli.cwl'.format(prefix)
+    dumped_app_red_file = '{}app-red.{}'.format(prefix, ext)
+    dumped_app_job_file = '{}app-job.{}'.format(prefix, ext)
+    dumped_agent_cwl_file = '{}agent-cli.cwl'.format(prefix)
+    dumped_agent_job_file = '{}agent-job.{}'.format(prefix, ext)
+    dumped_agent_job_ignore_output_file = '{}agent-job-ignore-output.{}'.format(prefix, ext)
     agent_stdout_file = 'agent-stdout.{}'.format(ext)
 
     dumped_app_job_data = dump_job(red_data['inputs'], '.')
     dumped_agent_cwl_data = dump_agent_cwl(red_data, agent_stdout_file)
-    dumped_agent_job_data = dump_agent_job(dumped_app_red_file, outdir, dump_format, False)
-    dumped_agent_job_ignore_output_data = dump_agent_job(dumped_app_red_file, outdir, dump_format, True)
+    dumped_agent_job_data = dump_agent_job(dumped_app_red_file, outdir, format, False)
+    dumped_agent_job_ignore_output_data = dump_agent_job(dumped_app_red_file, outdir, format, True)
     dumped_app_cwl_data = dump_app_cwl(red_data)
 
-    dump(dumped_app_cwl_data, dump_format, dumped_app_cwl_file)
-    dump(red_data, dump_format, dumped_app_red_file)
-    dump(dumped_app_job_data, dump_format, dumped_app_job_file)
-    dump(dumped_agent_cwl_data, dump_format, dumped_agent_cwl_file)
-    dump(dumped_agent_job_data, dump_format, dumped_agent_job_file)
-    dump(dumped_agent_job_ignore_output_data, dump_format, dumped_agent_job_ignore_output_file)
+    dump(dumped_app_cwl_data, format, dumped_app_cwl_file)
+    dump(red_data, format, dumped_app_red_file)
+    dump(dumped_app_job_data, format, dumped_app_job_file)
+    dump(dumped_agent_cwl_data, format, dumped_agent_cwl_file)
+    dump(dumped_agent_job_data, format, dumped_agent_job_file)
+    dump(dumped_agent_job_ignore_output_data, format, dumped_agent_job_ignore_output_file)
 
     option3_command = 'cwltool {} {}'.format(dumped_app_cwl_file, dumped_app_job_file)
     if outdir:

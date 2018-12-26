@@ -8,27 +8,26 @@ from cc_core.commons.templates import inspect_templates_and_secrets, fill_templa
 from cc_core.commons.engines import engine_validation
 
 
-DESCRIPTION = 'Execute experiment according to execution engine defined in RED_FILE.'
+DESCRIPTION = 'Execute experiment according to execution engine defined in REDFILE.'
 
 
 def attach_args(parser):
     parser.add_argument(
-        'red_file', action='store', type=str, metavar='RED_FILE',
-        help='RED_FILE (json or yaml) containing an experiment description as local path or http url.'
+        'red_file', action='store', type=str, metavar='REDFILE',
+        help='REDFILE (json or yaml) containing an experiment description as local PATH or http URL.'
     )
     parser.add_argument(
-        '--fill-file', action='store', type=str, metavar='FILL_FILE',
-        help='FILL_FILE (json or yaml) containing key-value pairs for template variables in RED_FILE as '
-             'local path or http url.'
+        '-v', '--variables', action='store', type=str, metavar='VARFILE',
+        help='VARFILE (json or yaml) containing key-value pairs for variables in REDFILE as '
+             'local PATH or http URL.'
     )
     parser.add_argument(
         '--non-interactive', action='store_true',
-        help='Do not ask for jinja template values interactively.'
+        help='Do not ask for RED variables interactively.'
     )
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-                             'is "yaml".'
+        '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
+        help='Specify FORMAT for generated data as one of [json, yaml, yml]. Default is yaml.'
     )
 
 
@@ -39,14 +38,14 @@ def main():
     return run(**args.__dict__)
 
 
-def run(red_file, fill_file, non_interactive, dump_format):
-    red_data = load_and_read(red_file, 'RED_FILE')
+def run(red_file, variables, non_interactive, format):
+    red_data = load_and_read(red_file, 'REDFILE')
     red_validation(red_data, False)
     engine_validation(red_data, 'execution', ['ccagency'], 'faice exec')
 
     fill_data = None
-    if fill_file:
-        fill_data = load_and_read(fill_file, 'FILL_FILE')
+    if variables:
+        fill_data = load_and_read(variables, 'VARFILE')
         fill_validation(fill_data)
 
     template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
@@ -81,6 +80,6 @@ def run(red_file, fill_file, non_interactive, dump_format):
         wrapped_print(r.text.split('\n'), error=True)
         return 1
 
-    dump_print(r.json(), dump_format)
+    dump_print(r.json(), format)
 
     return 0

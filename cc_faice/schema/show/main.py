@@ -14,9 +14,8 @@ def attach_args(parser):
         help='SCHEMA as in "faice schemas list".'
     )
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-                             'is "yaml".'
+        '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
+        help='Specify FORMAT for generated data as one of [json, yaml, yml]. Default is yaml.'
     )
 
 
@@ -27,10 +26,10 @@ def main():
     return run(**args.__dict__)
 
 
-def run(schema, dump_format):
+def run(schema, format):
     if schema not in schemas:
         print('Schema "{}" not found. Use "faice schema list" for available schemas.'.format(schema), file=sys.stderr)
         return 1
 
-    dump_print(schemas[schema], dump_format)
+    dump_print(schemas[schema], format)
     return 0

@@ -10,20 +10,20 @@ DESCRIPTION = 'Run a simple http file server for debugging purposes. USE CAREFUL
 
 def attach_args(parser):
     parser.add_argument(
-        '--bind-host', action='store', type=str, metavar='BIND_HOST', default='0.0.0.0',
+        '--bind-host', action='store', type=str, metavar='HOST', default='0.0.0.0',
         help='Bind server to a network interface like "172.17.0.1" (docker) or "127.0.0.1" (localhost). '
              'Default is "0.0.0.0" (all interfaces).'
     )
     parser.add_argument(
-        '--bind-port', action='store', type=int, metavar='BIND_PORT', default=5000,
+        '--bind-port', action='store', type=int, metavar='PORT', default=5000,
         help='Bind server to a tcp port. Default is 5000.'
     )
     parser.add_argument(
-        '-u', '--updir', action='store', type=str, metavar='UPLOAD_DIR', default=os.getcwd(),
+        '-u', '--updir', action='store', type=str, metavar='UPDIR', default=os.getcwd(),
         help='Specify a directory for file uploads. Default is current working directory.'
     )
     parser.add_argument(
-        '-d', '--downdir', action='store', type=str, metavar='DOWNLOAD_DIR', default=os.getcwd(),
+        '-d', '--downdir', action='store', type=str, metavar='DOWNDIR', default=os.getcwd(),
         help='Specify a directory for file downloads. Default is current working directory.'
     )
 

@@ -9,12 +9,11 @@ DESCRIPTION = 'Read an arbitrary JSON or YAML file and convert it into the speci
 def attach_args(parser):
     parser.add_argument(
         'file', action='store', type=str, metavar='FILE',
-        help='FILE (json or yaml) to be converted into specified DUMP_FORMAT as local path or http url.'
+        help='FILE (json or yaml) to be converted into specified FORMAT as local path or http url.'
     )
     parser.add_argument(
-        '--dump-format', action='store', type=str, metavar='DUMP_FORMAT', choices=['json', 'yaml', 'yml'],
-        default='yaml', help='Dump format for data written to files or stdout, choices are "json" or "yaml", default '
-                             'is "yaml".'
+        '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
+        help='Specify FORMAT for generated data as one of [json, yaml, yml]. Default is yaml.'
     )
 
 
@@ -26,6 +25,6 @@ def main():
     return 0
 
 
-def run(file, dump_format):
+def run(file, format):
     data = load_and_read(file, 'FILE')
-    dump_print(data, dump_format)
+    dump_print(data, format)

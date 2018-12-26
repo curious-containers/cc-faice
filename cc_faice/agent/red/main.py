@@ -35,7 +35,7 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
-        help='Specify meta data FORMAT as one of [json, yaml, yml]. Default is yaml.'
+        help='Specify FORMAT for generated data as one of [json, yaml, yml]. Default is yaml.'
     )
     parser.add_argument(
         '--disable-pull', action='store_true',

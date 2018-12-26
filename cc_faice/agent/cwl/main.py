@@ -22,8 +22,8 @@ def attach_args(parser):
         help='JOBFILE in the CWL job format (json/yaml) as local PATH or http URL.'
     )
     parser.add_argument(
-        '-m', '--meta', action='store_true',
-        help='Write meta data, including detailed exceptions, to stdout.'
+        '-d', '--debug', action='store_true',
+        help='Write debug info, including detailed exceptions, to stdout.'
     )
     parser.add_argument(
         '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
@@ -55,8 +55,8 @@ def main():
     result = run(**args.__dict__)
 
     format = args.__dict__['format']
-    meta = args.__dict__['meta']
-    if meta:
+    debug = args.__dict__['debug']
+    if debug:
         dump_print(result, format)
 
     if result['state'] == 'succeeded':
@@ -129,7 +129,7 @@ def run(cwl_file,
             'cwl',
             mapped_cwl_file,
             mapped_job_file,
-            '--meta',
+            '--debug',
             '--format=json',
             '--leave-directories'
         ]

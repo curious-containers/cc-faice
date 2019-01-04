@@ -7,14 +7,12 @@ from cc_faice.agent.main import main as agent_main
 from cc_faice.exec.main import main as exec_main
 from cc_faice.schema.main import main as schema_main
 from cc_faice.file_server.main import main as file_server_main
-from cc_faice.export.main import main as export_main
 from cc_faice.convert.main import main as convert_main
 
 from cc_faice.agent.main import DESCRIPTION as AGENT_DESCRIPTION
 from cc_faice.exec.main import DESCRIPTION as EXEC_DESCRIPTION
 from cc_faice.schema.main import DESCRIPTION as SCHEMA_DESCRIPTION
 from cc_faice.file_server.main import DESCRIPTION as FILE_SERVER_DESCRIPTION
-from cc_faice.export.main import DESCRIPTION as EXPORT_DESCRIPTION
 from cc_faice.convert.main import DESCRIPTION as CONVERT_DESCRIPTION
 
 from cc_core.commons.cli_modes import cli_modes
@@ -29,7 +27,6 @@ MODES = OrderedDict([
     ('exec', {'main': exec_main, 'description': EXEC_DESCRIPTION}),
     ('schema', {'main': schema_main, 'description': SCHEMA_DESCRIPTION}),
     ('convert', {'main': convert_main, 'description': CONVERT_DESCRIPTION}),
-    ('export', {'main': export_main, 'description': EXPORT_DESCRIPTION}),
     ('file-server', {'main': file_server_main, 'description': FILE_SERVER_DESCRIPTION})
 ])
 

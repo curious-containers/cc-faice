@@ -4,7 +4,7 @@ from uuid import uuid4
 from argparse import ArgumentParser
 
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
-from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception
+from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
 from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
@@ -103,6 +103,17 @@ def run(red_file,
         ignore_outputs = not outputs
         red_validation(red_data, ignore_outputs, container_requirement=True)
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
+
+        # delete unused keys to avoid unnecessary variables handling
+        if 'execution' in red_data:
+            del red_data['execution']
+
+        if not outputs and 'outputs' in red_data:
+            del red_data['outputs']
+
+        if outputs and 'outputs' not in red_data:
+            raise ArgumentError('-o/--outputs argument is set, \
+            but no outputs section with RED connector settiings is defined in REDFILE')
 
         variables_data = None
         if variables:

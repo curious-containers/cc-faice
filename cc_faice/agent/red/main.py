@@ -121,9 +121,11 @@ def run(red_file,
             variables_data = load_and_read(variables, 'VARFILE')
             fill_validation(variables_data)
 
-        template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, variables_data, non_interactive)
+        template_keys_and_values, secret_values, incomplete_variables_file = inspect_templates_and_secrets(
+            red_data, variables_data, non_interactive
+        )
 
-        if template_keys_and_values:
+        if incomplete_variables_file:
             dump(template_keys_and_values, format, dumped_variables_file)
             variables = dumped_variables_file
         elif variables is not None and not is_local(variables):

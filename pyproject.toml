@@ -24,4 +24,4 @@ pycuda = { version = "^2018.1.1", optional = true }
 faice = 'cc_faice.main:main'
 
 [tool.poetry.extras]
-pycuda = ["pycuda"]
+nvidia-docker = ["pycuda"]

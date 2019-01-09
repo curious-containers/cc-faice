@@ -2,7 +2,7 @@ import os
 from uuid import uuid4
 from argparse import ArgumentParser
 
-from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
+from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format, print_exception
 
@@ -98,6 +98,11 @@ def run(cwl_file,
         input_dir = os.path.split(os.path.expanduser(job_file))[0]
         outputs_dir = 'outputs'
         dumped_job_file = '{}job.{}'.format(prefix, ext)
+        dumped_cwl_file = '{}.cwl'.format(prefix)
+
+        if not is_local(cwl_file):
+            dump(cwl_data, format, dumped_cwl_file)
+            cwl_file = dumped_cwl_file
 
         mapped_input_dir = '/opt/cc/inputs'
         mapped_outputs_dir = '/opt/cc/outputs'

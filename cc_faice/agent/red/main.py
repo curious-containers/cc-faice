@@ -3,7 +3,7 @@ import stat
 from uuid import uuid4
 from argparse import ArgumentParser
 
-from cc_core.commons.files import load_and_read, dump, dump_print, file_extension
+from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
 from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
@@ -97,6 +97,7 @@ def run(red_file,
     secret_values = None
     ext = file_extension(format)
     dumped_variables_file = '{}variables.{}'.format(prefix, ext)
+    dumped_red_file = '{}red.{}'.format(prefix, ext)
 
     try:
         red_data = load_and_read(red_file, 'REDFILE')
@@ -116,7 +117,7 @@ def run(red_file,
             but no outputs section with RED connector settiings is defined in REDFILE')
 
         variables_data = None
-        if variables:
+        if variables is not None:
             variables_data = load_and_read(variables, 'VARFILE')
             fill_validation(variables_data)
 
@@ -124,6 +125,14 @@ def run(red_file,
 
         if template_keys_and_values:
             dump(template_keys_and_values, format, dumped_variables_file)
+            variables = dumped_variables_file
+        elif variables is not None and not is_local(variables):
+            dump(variables_data, format, dumped_variables_file)
+            variables = dumped_variables_file
+
+        if not is_local(red_file):
+            dump(red_data, format, dumped_red_file)
+            red_file = dumped_red_file
 
         docker_manager = DockerManager()
 
@@ -197,7 +206,7 @@ def run(red_file,
             if outputs:
                 command.append('--outputs')
 
-            if template_keys_and_values:
+            if variables is not None:
                 command.append('--variables={}'.format(mapped_variables_file))
 
             command = ' '.join([str(c) for c in command])
@@ -221,7 +230,7 @@ def run(red_file,
                     os.chmod(outputs_dir, old_outputs_dir_permissions | stat.S_IWOTH)
 
             if template_keys_and_values:
-                rw_mappings.append([os.path.abspath(dumped_variables_file), mapped_variables_file])
+                rw_mappings.append([os.path.abspath(variables), mapped_variables_file])
 
             container_result['volumes']['readOnly'] = ro_mappings
             container_result['volumes']['readWrite'] = rw_mappings

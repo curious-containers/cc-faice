@@ -48,7 +48,7 @@ def run(red_file, variables, non_interactive, format):
         fill_data = load_and_read(variables, 'VARFILE')
         fill_validation(fill_data)
 
-    template_keys_and_values, secret_values = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
+    template_keys_and_values, secret_values, _ = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
     red_data = fill_template(red_data, template_keys_and_values, False, False)
     red_data_removed_underscores = fill_template(red_data, template_keys_and_values, False, True)
 

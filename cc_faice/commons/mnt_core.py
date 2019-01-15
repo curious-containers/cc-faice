@@ -3,9 +3,10 @@ import sys
 
 
 PACKAGES_DIR = '/cc/packages'
+LIB_DIR = '/cc/lib'
 
 
-def mount_points(dependencies):
+def module_mount_points(dependencies):
     result = []
 
     for module_name in dependencies:
@@ -24,3 +25,13 @@ def mount_points(dependencies):
             result.append([file_path, os.path.join(PACKAGES_DIR, file_name)])
 
     return result
+
+
+def interpreter_mount_points(dependencies):
+    result = []
+
+    for name, path in dependencies.items():
+        result.append([path, os.path.join(LIB_DIR, name)])
+
+    return result
+

@@ -156,7 +156,7 @@ class DockerManager:
             mem_limit=mem_limit,
             memswap_limit=mem_limit,
             runtime=runtime,
-            environment=environment,
+            environment=environment
         )
 
         c.start()

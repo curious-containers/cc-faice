@@ -12,10 +12,10 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
-from cc_core.commons.mnt_core import module_dependencies
+from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
-from cc_faice.commons.mnt_core import mount_points
+from cc_faice.commons.mnt_core import module_mount_points, interpreter_mount_points
 
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
@@ -110,8 +110,10 @@ def run(red_file,
     ]
 
     try:
-        dependencies = module_dependencies(agent_modules)
-        dependecy_mounts = mount_points(dependencies)
+        module_deps = module_dependencies(agent_modules)
+        module_mounts = module_mount_points(module_deps)
+        interpreter_deps = interpreter_dependencies()
+        interpreter_mounts = interpreter_mount_points(interpreter_deps)
 
         red_data = load_and_read(red_file, 'REDFILE')
         ignore_outputs = not outputs
@@ -243,7 +245,8 @@ def run(red_file,
             container_result['command'] = command
 
             ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
-            ro_mappings += dependecy_mounts
+            ro_mappings += module_mounts
+            ro_mappings += interpreter_mounts
             rw_mappings = []
 
             work_dir = None

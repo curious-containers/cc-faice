@@ -3,15 +3,20 @@ import stat
 from uuid import uuid4
 from argparse import ArgumentParser
 
+import cc_core.agent.cwl.main
+import cc_core.agent.red.main
+import cc_core.agent.connected.main
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
 from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
-
-from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
 from cc_core.commons.mnt_core import module_dependencies
+
+from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
+from cc_faice.commons.mnt_core import mount_points
+
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
 
@@ -63,9 +68,6 @@ def attach_args(parser):
 def main():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
-
-    print(module_dependencies())
-
     args = parser.parse_args()
     result = run(**args.__dict__)
 
@@ -101,8 +103,16 @@ def run(red_file,
     ext = file_extension(format)
     dumped_variables_file = '{}variables.{}'.format(prefix, ext)
     dumped_red_file = '{}red.{}'.format(prefix, ext)
+    agent_modules = [
+        cc_core.agent.cwl.main,
+        cc_core.agent.red.main,
+        cc_core.agent.connected.main
+    ]
 
     try:
+        dependencies = module_dependencies(agent_modules)
+        dependecy_mounts = mount_points(dependencies)
+
         red_data = load_and_read(red_file, 'REDFILE')
         ignore_outputs = not outputs
         red_validation(red_data, ignore_outputs, container_requirement=True)
@@ -233,6 +243,7 @@ def run(red_file,
             container_result['command'] = command
 
             ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
+            ro_mappings += dependecy_mounts
             rw_mappings = []
 
             work_dir = None

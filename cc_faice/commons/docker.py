@@ -165,6 +165,9 @@ class DockerManager:
         std_out = c.logs(stdout=True, stderr=False)
         std_err = c.logs(stdout=False, stderr=True)
 
+        print(std_out)
+        print(std_err)
+
         if not leave_container:
             c.remove()
 

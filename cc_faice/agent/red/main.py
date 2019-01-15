@@ -11,6 +11,7 @@ from cc_core.commons.engines import engine_validation, engine_to_runtime
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
+from cc_core.commons.mnt_core import module_dependencies
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
 
@@ -62,8 +63,10 @@ def attach_args(parser):
 def main():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
-    args = parser.parse_args()
 
+    print(module_dependencies())
+
+    args = parser.parse_args()
     result = run(**args.__dict__)
 
     format = args.__dict__['format']

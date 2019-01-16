@@ -1,11 +1,12 @@
 import os
 import sys
 
-from cc_core.commons.mnt_core import MOD_DIR, LIB_DIR
+from cc_core.commons.mnt_core import MOD_DIR, LIB_DIR, PYMOD_DIR
 
 
 def module_mount_points(dependencies):
-    result = []
+    stdlib_path = os.path.split(os.__file__)[0]
+    result = [[stdlib_path, PYMOD_DIR]]
 
     for module_name in dependencies:
         module = sys.modules[module_name]

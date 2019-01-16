@@ -12,7 +12,7 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
-from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies, BIN_DIR, ccagent_bin
+from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies, LIB_DIR, PYMOD_DIR, MOD_DIR, MNT_DIR
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 from cc_faice.commons.mnt_core import module_mount_points, interpreter_mount_points
@@ -103,8 +103,6 @@ def run(red_file,
     ext = file_extension(format)
     dumped_variables_file = '{}variables.{}'.format(prefix, ext)
     dumped_red_file = '{}red.{}'.format(prefix, ext)
-    dumped_ccagent_file = '{}ccagent.sh'.format(prefix)
-    mapped_ccagent_file = '{}/ccagent.sh'.format(BIN_DIR)
 
     agent_modules = [
         cc_core.agent.cwl.main,
@@ -168,8 +166,6 @@ def run(red_file,
             dump(red_data, format, dumped_red_file)
             red_file = dumped_red_file
 
-        ccagent_bin(dumped_ccagent_file)
-
         docker_manager = DockerManager()
 
         runtime = engine_to_runtime(red_data['container']['engine'])
@@ -220,15 +216,21 @@ def run(red_file,
             else:
                 outputs_dir = 'outputs_{}'.format(batch)
 
-            mapped_outputs_dir = '/opt/cc/outputs'
-            mapped_red_file = '/opt/cc/red.{}'.format(ext)
-            mapped_variables_file = '/opt/cc/variables.{}'.format(ext)
+            mapped_outputs_dir = '{}/outputs'.format(MNT_DIR)
+            mapped_red_file = '{}/red.{}'.format(MNT_DIR, ext)
+            mapped_variables_file = '{}/variables.{}'.format(MNT_DIR, ext)
 
             container_name = str(uuid4())
             container_result['name'] = container_name
 
             command = [
-                '/bin/sh {}/ccagent.sh'.format(BIN_DIR),
+                'LD_LIBRARY_PATH={}'.format(LIB_DIR),
+                'PYTHONPATH={pymod}:{pymod}/lib-dynload:{mod}'.format(pymod=PYMOD_DIR, mod=MOD_DIR),
+                'PYTHONHOME={}'.format(PYMOD_DIR),
+                '{}/ld.so'.format(LIB_DIR),
+                '{}/python'.format(LIB_DIR),
+                '-m',
+                'cc_core.agent',
                 'red',
                 mapped_red_file,
                 '--debug',
@@ -246,12 +248,12 @@ def run(red_file,
                 command.append('--variables={}'.format(mapped_variables_file))
 
             command = ' '.join([str(c) for c in command])
+            command = "/bin/sh -c '{}'".format(command)
 
             container_result['command'] = command
 
             ro_mappings = [
                 [os.path.abspath(red_file), mapped_red_file],
-                [os.path.abspath(dumped_ccagent_file), mapped_ccagent_file]
             ]
             ro_mappings += module_mounts
             ro_mappings += interpreter_mounts
@@ -271,7 +273,7 @@ def run(red_file,
                     os.chmod(outputs_dir, old_outputs_dir_permissions | stat.S_IWOTH)
 
             if template_keys_and_values:
-                rw_mappings.append([os.path.abspath(variables), mapped_variables_file])
+                ro_mappings.append([os.path.abspath(variables), mapped_variables_file])
 
             container_result['volumes']['readOnly'] = ro_mappings
             container_result['volumes']['readWrite'] = rw_mappings

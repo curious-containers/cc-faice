@@ -12,7 +12,7 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
-from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies
+from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies, BIN_DIR, ccagent_bin
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 from cc_faice.commons.mnt_core import module_mount_points, interpreter_mount_points
@@ -103,6 +103,9 @@ def run(red_file,
     ext = file_extension(format)
     dumped_variables_file = '{}variables.{}'.format(prefix, ext)
     dumped_red_file = '{}red.{}'.format(prefix, ext)
+    dumped_ccagent_file = '{}ccagent.sh'.format(prefix)
+    mapped_ccagent_file = '{}/ccagent.sh'.format(BIN_DIR)
+
     agent_modules = [
         cc_core.agent.cwl.main,
         cc_core.agent.red.main,
@@ -165,6 +168,8 @@ def run(red_file,
             dump(red_data, format, dumped_red_file)
             red_file = dumped_red_file
 
+        ccagent_bin(dumped_ccagent_file)
+
         docker_manager = DockerManager()
 
         runtime = engine_to_runtime(red_data['container']['engine'])
@@ -223,7 +228,7 @@ def run(red_file,
             container_result['name'] = container_name
 
             command = [
-                'ccagent',
+                '/bin/sh {}/ccagent.sh'.format(BIN_DIR),
                 'red',
                 mapped_red_file,
                 '--debug',
@@ -244,7 +249,10 @@ def run(red_file,
 
             container_result['command'] = command
 
-            ro_mappings = [[os.path.abspath(red_file), mapped_red_file]]
+            ro_mappings = [
+                [os.path.abspath(red_file), mapped_red_file],
+                [os.path.abspath(dumped_ccagent_file), mapped_ccagent_file]
+            ]
             ro_mappings += module_mounts
             ro_mappings += interpreter_mounts
             rw_mappings = []

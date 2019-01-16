@@ -1,9 +1,7 @@
 import os
 import sys
 
-
-PACKAGES_DIR = '/cc/packages'
-LIB_DIR = '/cc/lib'
+from cc_core.commons.mnt_core import MOD_DIR, LIB_DIR
 
 
 def module_mount_points(dependencies):
@@ -20,9 +18,9 @@ def module_mount_points(dependencies):
                 dir_path, last_part = os.path.split(dir_path)
 
             if last_part is not None:
-                result.append([os.path.join(dir_path, last_part), os.path.join(PACKAGES_DIR, last_part)])
+                result.append([os.path.join(dir_path, last_part), os.path.join(MOD_DIR, last_part)])
         else:
-            result.append([file_path, os.path.join(PACKAGES_DIR, file_name)])
+            result.append([file_path, os.path.join(MOD_DIR, file_name)])
 
     return result
 

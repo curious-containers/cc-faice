@@ -224,6 +224,9 @@ def run(red_file,
             container_result['name'] = container_name
 
             command = [
+                'LD_LIBRARY_PATH_BAK=${LD_LIBRARY_PATH}',
+                'PYTHONPATH_BAK=${PYTHONPATH}',
+                'PYTHONHOME_BAK=${PYTHONHOME}',
                 'LD_LIBRARY_PATH={}'.format(LIB_DIR),
                 'PYTHONPATH={pymod}:{pymod}/lib-dynload:{mod}'.format(pymod=PYMOD_DIR, mod=MOD_DIR),
                 'PYTHONHOME={}'.format(PYMOD_DIR),

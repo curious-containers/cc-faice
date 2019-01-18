@@ -5,17 +5,16 @@ from argparse import ArgumentParser
 
 import cc_core.agent.cwl.main
 import cc_core.agent.red.main
-import cc_core.agent.connected.main
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
 from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
-from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies, LIB_DIR, PYMOD_DIR, MOD_DIR, MNT_DIR
+from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies, LIB_DIR, PYMOD_DIR, MOD_DIR
+from cc_core.commons.mnt_core import module_destinations, interpreter_destinations
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
-from cc_faice.commons.mnt_core import module_mount_points, interpreter_mount_points
 
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
@@ -106,15 +105,14 @@ def run(red_file,
 
     agent_modules = [
         cc_core.agent.cwl.main,
-        cc_core.agent.red.main,
-        cc_core.agent.connected.main
+        cc_core.agent.red.main
     ]
 
     try:
         module_deps = module_dependencies(agent_modules)
-        module_mounts = module_mount_points(module_deps)
+        module_mounts = module_destinations(module_deps)
         interpreter_deps = interpreter_dependencies()
-        interpreter_mounts = interpreter_mount_points(interpreter_deps)
+        interpreter_mounts = interpreter_destinations(interpreter_deps)
 
         red_data = load_and_read(red_file, 'REDFILE')
         ignore_outputs = not outputs
@@ -216,9 +214,9 @@ def run(red_file,
             else:
                 outputs_dir = 'outputs_{}'.format(batch)
 
-            mapped_outputs_dir = '{}/outputs'.format(MNT_DIR)
-            mapped_red_file = '{}/red.{}'.format(MNT_DIR, ext)
-            mapped_variables_file = '{}/variables.{}'.format(MNT_DIR, ext)
+            mapped_outputs_dir = '/red/outputs'
+            mapped_red_file = '/red/red.{}'.format(ext)
+            mapped_variables_file = '/red/variables.{}'.format(ext)
 
             container_name = str(uuid4())
             container_result['name'] = container_name
@@ -227,11 +225,15 @@ def run(red_file,
                 'LD_LIBRARY_PATH_BAK=${LD_LIBRARY_PATH}',
                 'PYTHONPATH_BAK=${PYTHONPATH}',
                 'PYTHONHOME_BAK=${PYTHONHOME}',
-                'LD_LIBRARY_PATH={}'.format(LIB_DIR),
-                'PYTHONPATH={pymod}:{pymod}/lib-dynload:{mod}'.format(pymod=PYMOD_DIR, mod=MOD_DIR),
-                'PYTHONHOME={}'.format(PYMOD_DIR),
-                '{}/ld.so'.format(LIB_DIR),
-                '{}/python'.format(LIB_DIR),
+                'LD_LIBRARY_PATH={}'.format(os.path.join('/', LIB_DIR)),
+                'PYTHONPATH={}:{}:{}'.format(
+                    os.path.join('/', PYMOD_DIR),
+                    os.path.join('/', PYMOD_DIR, 'lib-dynload'),
+                    os.path.join('/', MOD_DIR)
+                ),
+                'PYTHONHOME={}'.format(os.path.join('/', PYMOD_DIR)),
+                os.path.join('/', LIB_DIR, 'ld.so'),
+                os.path.join('/', LIB_DIR, 'python'),
                 '-m',
                 'cc_core.agent',
                 'red',

@@ -112,8 +112,6 @@ def run(red_file,
         module_deps, c_module_deps = module_dependencies(agent_modules)
         module_mounts = module_destinations(module_deps)
         interpreter_deps = interpreter_dependencies(c_module_deps)
-        from pprint import pprint
-        pprint(interpreter_deps)
         interpreter_mounts = interpreter_destinations(interpreter_deps)
 
         red_data = load_and_read(red_file, 'REDFILE')

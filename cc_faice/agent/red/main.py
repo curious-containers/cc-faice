@@ -3,7 +3,6 @@ import stat
 from uuid import uuid4
 from argparse import ArgumentParser
 
-import cc_core.agent.cwl.main
 import cc_core.agent.red.main
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
@@ -103,10 +102,7 @@ def run(red_file,
     dumped_variables_file = '{}variables.{}'.format(prefix, ext)
     dumped_red_file = '{}red.{}'.format(prefix, ext)
 
-    agent_modules = [
-        cc_core.agent.cwl.main,
-        cc_core.agent.red.main
-    ]
+    agent_modules = [cc_core.agent.red.main]
 
     try:
         module_deps, c_module_deps = module_dependencies(agent_modules)
@@ -226,17 +222,17 @@ def run(red_file,
                 'PYTHONPATH_BAK=${PYTHONPATH}',
                 'PYTHONHOME_BAK=${PYTHONHOME}',
                 'LD_LIBRARY_PATH={}'.format(os.path.join('/', LIB_DIR)),
-                'PYTHONPATH={}:{}:{}'.format(
+                'PYTHONPATH={}:{}:{}:{}'.format(
                     os.path.join('/', PYMOD_DIR),
                     os.path.join('/', PYMOD_DIR, 'lib-dynload'),
+                    os.path.join('/', PYMOD_DIR, 'site-packages'),
                     os.path.join('/', MOD_DIR)
                 ),
                 'PYTHONHOME={}'.format(os.path.join('/', PYMOD_DIR)),
                 os.path.join('/', LIB_DIR, 'ld.so'),
                 os.path.join('/', LIB_DIR, 'python'),
                 '-m',
-                'cc_core.agent',
-                'red',
+                'cc_core.agent.red',
                 mapped_red_file,
                 '--debug',
                 '--format=json',

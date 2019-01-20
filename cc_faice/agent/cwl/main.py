@@ -2,9 +2,12 @@ import os
 from uuid import uuid4
 from argparse import ArgumentParser
 
+import cc_core.agent.cwl.main
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format, print_exception
+from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies, LIB_DIR, PYMOD_DIR, MOD_DIR
+from cc_core.commons.mnt_core import module_destinations, interpreter_destinations
 
 from cc_faice.commons.docker import dump_job, input_volume_mappings, DockerManager, docker_result_check, env_vars
 
@@ -88,7 +91,14 @@ def run(cwl_file,
         'state': 'succeeded'
     }
 
+    agent_modules = [cc_core.agent.cwl.main]
+
     try:
+        module_deps, c_module_deps = module_dependencies(agent_modules)
+        module_mounts = module_destinations(module_deps)
+        interpreter_deps = interpreter_dependencies(c_module_deps)
+        interpreter_mounts = interpreter_destinations(interpreter_deps)
+
         cwl_data = load_and_read(cwl_file, 'CWLFILE')
         job_data = load_and_read(job_file, 'JOBFILE')
 
@@ -104,10 +114,10 @@ def run(cwl_file,
             dump(cwl_data, format, dumped_cwl_file)
             cwl_file = dumped_cwl_file
 
-        mapped_input_dir = '/opt/cc/inputs'
-        mapped_outputs_dir = '/opt/cc/outputs'
-        mapped_cwl_file = '/opt/cc/cli.cwl'
-        mapped_job_file = '/opt/cc/job.{}'.format(ext)
+        mapped_input_dir = '/cwl/inputs'
+        mapped_outputs_dir = '/cwl/outputs'
+        mapped_cwl_file = '/cwl/cli.cwl'
+        mapped_job_file = '/cwl/job.{}'.format(ext)
 
         dumped_job_data = dump_job(job_data, mapped_input_dir)
 
@@ -116,6 +126,8 @@ def run(cwl_file,
             [os.path.abspath(cwl_file), mapped_cwl_file],
             [os.path.abspath(dumped_job_file), mapped_job_file]
         ]
+        ro_mappings += module_mounts
+        ro_mappings += interpreter_mounts
         rw_mappings = [[os.path.abspath(outputs_dir), mapped_outputs_dir]]
 
         result['container']['volumes']['readOnly'] = ro_mappings
@@ -130,8 +142,21 @@ def run(cwl_file,
             docker_manager.pull(image)
 
         command = [
-            'ccagent',
-            'cwl',
+            'LD_LIBRARY_PATH_BAK=${LD_LIBRARY_PATH}',
+            'PYTHONPATH_BAK=${PYTHONPATH}',
+            'PYTHONHOME_BAK=${PYTHONHOME}',
+            'LD_LIBRARY_PATH={}'.format(os.path.join('/', LIB_DIR)),
+            'PYTHONPATH={}:{}:{}:{}'.format(
+                os.path.join('/', PYMOD_DIR),
+                os.path.join('/', PYMOD_DIR, 'lib-dynload'),
+                os.path.join('/', PYMOD_DIR, 'site-packages'),
+                os.path.join('/', MOD_DIR)
+            ),
+            'PYTHONHOME={}'.format(os.path.join('/', PYMOD_DIR)),
+            os.path.join('/', LIB_DIR, 'ld.so'),
+            os.path.join('/', LIB_DIR, 'python'),
+            '-m',
+            'cc_core.agent.cwl',
             mapped_cwl_file,
             mapped_job_file,
             '--debug',
@@ -140,6 +165,7 @@ def run(cwl_file,
         ]
 
         command = ' '.join([str(c) for c in command])
+        command = "/bin/sh -c '{}'".format(command)
 
         result['container']['command'] = command
 

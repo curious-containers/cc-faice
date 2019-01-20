@@ -168,4 +168,12 @@ class DockerManager:
         if not leave_container:
             c.remove()
 
-        return read(std_out.decode('utf-8'), 'CCAGENT_OUTPUT'), std_err.decode('utf-8')
+        std_out = std_out.decode('utf-8')
+        std_err = std_err.decode('utf-8')
+
+        try:
+            std_out = read(std_out, 'CCAGENT_OUTPUT')
+        except Exception:
+            raise AgentError(std_err)
+
+        return std_out, std_err

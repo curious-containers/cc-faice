@@ -6,8 +6,8 @@ import cc_core.agent.cwl.main
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format, print_exception
-from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies, LIB_DIR, PYMOD_DIR, MOD_DIR
-from cc_core.commons.mnt_core import module_destinations, interpreter_destinations
+from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies
+from cc_core.commons.mnt_core import module_destinations, interpreter_destinations, interpreter_command
 
 from cc_faice.commons.docker import dump_job, input_volume_mappings, DockerManager, docker_result_check, env_vars
 
@@ -141,20 +141,8 @@ def run(cwl_file,
         if not disable_pull:
             docker_manager.pull(image)
 
-        command = [
-            'LD_LIBRARY_PATH_BAK=${LD_LIBRARY_PATH}',
-            'PYTHONPATH_BAK=${PYTHONPATH}',
-            'PYTHONHOME_BAK=${PYTHONHOME}',
-            'LD_LIBRARY_PATH={}'.format(os.path.join('/', LIB_DIR)),
-            'PYTHONPATH={}:{}:{}:{}'.format(
-                os.path.join('/', PYMOD_DIR),
-                os.path.join('/', PYMOD_DIR, 'lib-dynload'),
-                os.path.join('/', PYMOD_DIR, 'site-packages'),
-                os.path.join('/', MOD_DIR)
-            ),
-            'PYTHONHOME={}'.format(os.path.join('/', PYMOD_DIR)),
-            os.path.join('/', LIB_DIR, 'ld.so'),
-            os.path.join('/', LIB_DIR, 'python'),
+        command = interpreter_command()
+        command += [
             '-m',
             'cc_core.agent.cwl',
             mapped_cwl_file,

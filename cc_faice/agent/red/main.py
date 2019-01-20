@@ -10,8 +10,8 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
-from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies, LIB_DIR, PYMOD_DIR, MOD_DIR
-from cc_core.commons.mnt_core import module_destinations, interpreter_destinations
+from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies
+from cc_core.commons.mnt_core import module_destinations, interpreter_destinations, interpreter_command
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 
@@ -119,6 +119,9 @@ def run(red_file,
         if 'execution' in red_data:
             del red_data['execution']
 
+        if disable_pull and 'auth' in red_data['container']['settings']['image']:
+            del red_data['container']['settings']['image']['auth']
+
         if not outputs:
             if 'outputs' in red_data:
                 del red_data['outputs']
@@ -217,20 +220,8 @@ def run(red_file,
             container_name = str(uuid4())
             container_result['name'] = container_name
 
-            command = [
-                'LD_LIBRARY_PATH_BAK=${LD_LIBRARY_PATH}',
-                'PYTHONPATH_BAK=${PYTHONPATH}',
-                'PYTHONHOME_BAK=${PYTHONHOME}',
-                'LD_LIBRARY_PATH={}'.format(os.path.join('/', LIB_DIR)),
-                'PYTHONPATH={}:{}:{}:{}'.format(
-                    os.path.join('/', PYMOD_DIR),
-                    os.path.join('/', PYMOD_DIR, 'lib-dynload'),
-                    os.path.join('/', PYMOD_DIR, 'site-packages'),
-                    os.path.join('/', MOD_DIR)
-                ),
-                'PYTHONHOME={}'.format(os.path.join('/', PYMOD_DIR)),
-                os.path.join('/', LIB_DIR, 'ld.so'),
-                os.path.join('/', LIB_DIR, 'python'),
+            command = interpreter_command()
+            command += [
                 '-m',
                 'cc_core.agent.red',
                 mapped_red_file,

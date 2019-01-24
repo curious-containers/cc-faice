@@ -130,11 +130,12 @@ def run(red_file,
                 del batch['outputs']
         else:
             # check if outputs section is available
-            if 'inputs' in red_data and 'outputs' not in red_data:
-                raise ArgumentError(
-                    '-o/--outputs argument is set, but no outputs section with RED connector settiings is defined in '
-                    'REDFILE'
-                )
+            if 'inputs' in red_data:
+                if 'outputs' not in red_data:
+                    raise ArgumentError(
+                        '-o/--outputs argument is set, but no outputs section with RED connector settiings is defined '
+                        'in REDFILE'
+                    )
             else:
                 for i, batch in enumerate(red_data['batches']):
                     if 'outputs' not in batch:

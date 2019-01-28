@@ -15,10 +15,6 @@ from cc_core.commons.mnt_core import module_destinations, interpreter_destinatio
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
 
-import cc_core.agent.red.__main__
-import runpy
-import keyword
-
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
 
@@ -106,12 +102,18 @@ def run(red_file,
     dumped_variables_file = '{}variables.{}'.format(prefix, ext)
     dumped_red_file = '{}red.{}'.format(prefix, ext)
 
-    agent_modules = [cc_core.agent.red.__main__, runpy, keyword]
-
     try:
-        file_modules, c_modules = module_dependencies(agent_modules)
-        module_mounts = module_destinations(file_modules)
-        interpreter_deps = interpreter_dependencies(c_modules)
+        import cc_core.agent.red.__main__
+        import cc_core
+        import runpy
+        import keyword
+        import opcode
+
+        source_paths, c_source_paths = module_dependencies(
+            [cc_core, cc_core.agent.red.__main__, runpy, keyword, opcode]
+        )
+        module_mounts = module_destinations(source_paths)
+        interpreter_deps = interpreter_dependencies(c_source_paths)
         interpreter_mounts = interpreter_destinations(interpreter_deps)
 
         red_data = load_and_read(red_file, 'REDFILE')

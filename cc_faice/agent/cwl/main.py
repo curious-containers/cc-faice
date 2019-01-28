@@ -2,7 +2,6 @@ import os
 from uuid import uuid4
 from argparse import ArgumentParser
 
-import cc_core.agent.cwl.main
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.cwl import cwl_validation
 from cc_core.commons.exceptions import exception_format, print_exception
@@ -91,12 +90,18 @@ def run(cwl_file,
         'state': 'succeeded'
     }
 
-    agent_modules = [cc_core.agent.cwl.main]
-
     try:
-        module_deps, c_module_deps = module_dependencies(agent_modules)
-        module_mounts = module_destinations(module_deps)
-        interpreter_deps = interpreter_dependencies(c_module_deps)
+        import cc_core.agent.cwl.__main__
+        import cc_core
+        import runpy
+        import keyword
+        import opcode
+
+        source_paths, c_source_paths = module_dependencies(
+            [cc_core, cc_core.agent.cwl.__main__, runpy, keyword, opcode]
+        )
+        module_mounts = module_destinations(source_paths)
+        interpreter_deps = interpreter_dependencies(c_source_paths)
         interpreter_mounts = interpreter_destinations(interpreter_deps)
 
         cwl_data = load_and_read(cwl_file, 'CWLFILE')

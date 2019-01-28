@@ -1,9 +1,9 @@
 import os
 import stat
+from pprint import pprint
 from uuid import uuid4
 from argparse import ArgumentParser
 
-import cc_core.agent.red.main
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
 from cc_core.commons.red import red_validation
@@ -14,6 +14,10 @@ from cc_core.commons.mnt_core import module_dependencies, interpreter_dependenci
 from cc_core.commons.mnt_core import module_destinations, interpreter_destinations, interpreter_command
 
 from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
+
+import cc_core.agent.red.__main__
+import runpy
+import keyword
 
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
@@ -102,12 +106,12 @@ def run(red_file,
     dumped_variables_file = '{}variables.{}'.format(prefix, ext)
     dumped_red_file = '{}red.{}'.format(prefix, ext)
 
-    agent_modules = [cc_core.agent.red.main]
+    agent_modules = [cc_core.agent.red.__main__, runpy, keyword]
 
     try:
-        module_deps, c_module_deps = module_dependencies(agent_modules)
-        module_mounts = module_destinations(module_deps)
-        interpreter_deps = interpreter_dependencies(c_module_deps)
+        file_modules, c_modules = module_dependencies(agent_modules)
+        module_mounts = module_destinations(file_modules)
+        interpreter_deps = interpreter_dependencies(c_modules)
         interpreter_mounts = interpreter_destinations(interpreter_deps)
 
         red_data = load_and_read(red_file, 'REDFILE')

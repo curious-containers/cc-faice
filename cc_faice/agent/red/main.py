@@ -240,7 +240,7 @@ def run(red_file,
             if outputs:
                 command.append('--outputs')
 
-            if variables is not None:
+            if template_keys_and_values and variables is not None:
                 command.append('--variables={}'.format(mapped_variables_file))
 
             command = ' '.join([str(c) for c in command])
@@ -268,7 +268,7 @@ def run(red_file,
                     old_outputs_dir_permissions = os.stat(outputs_dir).st_mode
                     os.chmod(outputs_dir, old_outputs_dir_permissions | stat.S_IWOTH)
 
-            if template_keys_and_values:
+            if template_keys_and_values and variables is not None:
                 ro_mappings.append([os.path.abspath(variables), mapped_variables_file])
 
             container_result['volumes']['readOnly'] = ro_mappings

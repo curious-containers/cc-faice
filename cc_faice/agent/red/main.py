@@ -136,14 +136,14 @@ def run(red_file,
             if 'inputs' in red_data:
                 if 'outputs' not in red_data:
                     raise ArgumentError(
-                        '-o/--outputs argument is set, but no outputs section with RED connector settiings is defined '
+                        '-o/--outputs argument is set, but no outputs section with RED connector settings is defined '
                         'in REDFILE'
                     )
             else:
                 for i, batch in enumerate(red_data['batches']):
                     if 'outputs' not in batch:
                         raise ArgumentError(
-                            '-o/--outputs argument is set, but no outputs section with RED connector settiings is '
+                            '-o/--outputs argument is set, but no outputs section with RED connector settings is '
                             'defined in batch {} of REDFILE'.format(i)
                         )
 

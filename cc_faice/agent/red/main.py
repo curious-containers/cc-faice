@@ -1,6 +1,5 @@
 import os
 import stat
-from pprint import pprint
 from uuid import uuid4
 from argparse import ArgumentParser
 

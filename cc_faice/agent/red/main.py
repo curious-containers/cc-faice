@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
-from cc_core.commons.red import red_validation
+from cc_core.commons.red import red_validation, red_is_connector_mounting
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
@@ -115,6 +115,7 @@ def run(red_file,
         red_data = load_and_read(red_file, 'REDFILE')
         ignore_outputs = not outputs
         red_validation(red_data, ignore_outputs, container_requirement=True)
+        is_mounting = red_is_connector_mounting(red_data, ignore_outputs)
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
 
         # delete unused keys to avoid unnecessary variables handling
@@ -286,7 +287,8 @@ def run(red_file,
                 ram=ram,
                 runtime=runtime,
                 gpus=gpus,
-                environment=environment
+                environment=environment,
+                enable_fuse=is_mounting
             )
             if old_outputs_dir_permissions is not None:
                 os.chmod(outputs_dir, old_outputs_dir_permissions)

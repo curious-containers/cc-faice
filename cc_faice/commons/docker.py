@@ -117,7 +117,9 @@ class DockerManager:
                       ram,
                       runtime=DEFAULT_DOCKER_RUNTIME,
                       gpus=None,
-                      environment=None):
+                      environment=None,
+                      enable_fuse=False
+                      ):
         binds = {}
 
         if environment is None:
@@ -146,6 +148,12 @@ class DockerManager:
         if runtime == NVIDIA_DOCKER_RUNTIME:
             set_nvidia_environment_variables(environment, map(lambda gpu: gpu.device_id, gpus))
 
+        devices = []
+        capabilities = []
+        if enable_fuse:
+            devices.append('/dev/fuse')
+            capabilities.append('SYS_ADMIN')
+
         c = self._client.containers.create(
             image,
             command,
@@ -156,7 +164,9 @@ class DockerManager:
             mem_limit=mem_limit,
             memswap_limit=mem_limit,
             runtime=runtime,
-            environment=environment
+            environment=environment,
+            devices=devices,
+            cap_add=capabilities
         )
 
         c.start()

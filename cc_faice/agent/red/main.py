@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 
 from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
 from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
-from cc_core.commons.red import red_validation, red_is_connector_mounting
+from cc_core.commons.red import red_validation, red_get_mount_connectors
 from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
 from cc_core.commons.engines import engine_validation, engine_to_runtime
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
@@ -57,6 +57,11 @@ def attach_args(parser):
         help='Do not ask for RED variables interactively.'
     )
     parser.add_argument(
+        '--insecure', action='store_true',
+        help='This enables SYS_ADMIN capabilities for the executed container, '
+             'if needed for user space mounts (for example sshfs)'
+    )
+    parser.add_argument(
         '--prefix', action='store', type=str, metavar='PREFIX', default='faice_',
         help='PREFIX for files dumped to storage, default is "faice_".'
     )
@@ -88,6 +93,7 @@ def run(red_file,
         preserve_environment,
         non_interactive,
         prefix,
+        insecure,
         **_
         ):
     result = {
@@ -115,7 +121,18 @@ def run(red_file,
         red_data = load_and_read(red_file, 'REDFILE')
         ignore_outputs = not outputs
         red_validation(red_data, ignore_outputs, container_requirement=True)
-        is_mounting = red_is_connector_mounting(red_data, ignore_outputs)
+
+        mount_connectors = red_get_mount_connectors(red_data, ignore_outputs)
+        if mount_connectors:
+            if not insecure:
+                raise Exception('The following inputs are mounting directories {}.\nTo enable mounting inside '
+                                'a docker container run faice with --insecure (see --help).\n'
+                                'Be aware that this will enable SYS_ADMIN capabilities in order to enable FUSE mounts.'
+                                .format(mount_connectors))
+            is_mounting = True
+        else:
+            is_mounting = False
+
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
 
         # delete unused keys to avoid unnecessary variables handling

@@ -123,6 +123,7 @@ def run(red_file,
         red_validation(red_data, ignore_outputs, container_requirement=True)
 
         mount_connectors = red_get_mount_connectors(red_data, ignore_outputs)
+        is_mounting = False
         if mount_connectors:
             if not insecure:
                 raise Exception('The following inputs are mounting directories {}.\nTo enable mounting inside '
@@ -130,8 +131,6 @@ def run(red_file,
                                 'Be aware that this will enable SYS_ADMIN capabilities in order to enable FUSE mounts.'
                                 .format(mount_connectors))
             is_mounting = True
-        else:
-            is_mounting = False
 
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
 
@@ -147,7 +146,8 @@ def run(red_file,
                 del red_data['outputs']
 
             for batch in red_data.get('batches', []):
-                del batch['outputs']
+                if 'outputs' in batch:
+                    del batch['outputs']
         else:
             # check if outputs section is available
             if 'inputs' in red_data:

@@ -58,8 +58,7 @@ def attach_args(parser):
     )
     parser.add_argument(
         '--insecure', action='store_true',
-        help='This enables SYS_ADMIN capabilities for the executed container, '
-             'if needed for user space mounts (for example sshfs)'
+        help='Enable SYS_ADMIN capabilities in container, if REDFILE contains connectors performing FUSE mounts.'
     )
     parser.add_argument(
         '--prefix', action='store', type=str, metavar='PREFIX', default='faice_',

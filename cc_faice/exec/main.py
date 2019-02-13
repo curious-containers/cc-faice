@@ -48,7 +48,8 @@ def run(red_file, variables, non_interactive, format):
     # exec via CC-FAICE
     # equivalent to `faice agent red --debug --outputs`
     if red_data['execution']['engine'] == 'ccfaice':
-        result = run_faice_agent_red(red_file, variables, True, format, None, None, None, None, None)
+        insecure = red_data['execution']['settings'].get('insecure')
+        result = run_faice_agent_red(red_file, variables, True, format, None, None, None, None, None, insecure)
         dump_print(result, 'yaml')
 
         if result['state'] == 'succeeded':

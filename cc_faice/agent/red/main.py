@@ -202,12 +202,12 @@ def run(red_file,
     except RedValidationError as e:
         result['debugInfo'] = exception_format(secret_values=secret_values)
         result['state'] = 'failed'
-        print_exception(e)
+        print_exception(e, secret_values)
         return result
     except Exception as e:
         result['debugInfo'] = exception_format()
         result['state'] = 'failed'
-        print_exception(e)
+        print_exception(e, secret_values)
         return result
 
     batches = [None]
@@ -314,7 +314,7 @@ def run(red_file,
             container_result['debugInfo'] = exception_format()
             container_result['state'] = 'failed'
             result['state'] = 'failed'
-            print_exception(e)
+            print_exception(e, secret_values)
             break
 
     if os.path.exists(dumped_variables_file):

@@ -31,6 +31,11 @@ def attach_args(parser):
         '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
         help='Specify FORMAT for generated data as one of [json, yaml, yml]. Default is yaml.'
     )
+    parser.add_argument(
+        '--insecure', action='store_true',
+        help='This argument will be passed to ccfaice, if the given REDFILE refers to this execution engine. '
+             'See "faice agent red --help" for more information.'
+    )
 
 
 def main():
@@ -40,7 +45,7 @@ def main():
     return run(**args.__dict__)
 
 
-def run(red_file, variables, non_interactive, format):
+def run(red_file, variables, non_interactive, format, insecure):
     red_data = load_and_read(red_file, 'REDFILE')
     red_validation(red_data, False)
     engine_validation(red_data, 'execution', ['ccfaice', 'ccagency'], 'faice exec')
@@ -48,7 +53,6 @@ def run(red_file, variables, non_interactive, format):
     # exec via CC-FAICE
     # equivalent to `faice agent red --debug --outputs`
     if red_data['execution']['engine'] == 'ccfaice':
-        insecure = red_data['execution']['settings'].get('insecure')
         result = run_faice_agent_red(red_file, variables, True, format, None, None, None, None, None, insecure)
         dump_print(result, 'yaml')
 

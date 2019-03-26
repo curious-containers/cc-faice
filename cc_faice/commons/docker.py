@@ -99,7 +99,7 @@ class DockerManager:
                 base_url=DOCKER_SOCKET,
                 version='auto'
             )
-        except DockerException as e:
+        except DockerException:
             raise DockerException('Could not connect to docker daemon at "{}". Is the docker daemon running?'
                                   .format(DOCKER_SOCKET))
 
@@ -120,13 +120,13 @@ class DockerManager:
                       environment=None,
                       enable_fuse=False
                       ):
-        binds = {}
-
         if environment is None:
             environment = {}
 
         if gpus is None:
             gpus = []
+
+        binds = {}
 
         for host_vol, container_vol in ro_mappings:
             binds[host_vol] = {

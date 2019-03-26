@@ -1,29 +1,36 @@
 """
                 Host            Container
-blue_file       <tempfile>      /tmp/red/exec/blue_file.yml
-blue_agent      <import...>     /tmp/red/exec/blue_agent.py
-working dir     -               /tmp/red/work/
-outputs         ./outputs       /tmp/red/outputs/
+blue_file       <tempfile>      /tmp/red_exec/blue_file.yml
+blue_agent      <import...>     /tmp/red_exec/blue_agent.py
+outputs         ./outputs       /outputs/
 inputs          -               /tmp/red/inputs/
+working dir     -               -
 """
+import os
+
 import tempfile
 import json
 
 from argparse import ArgumentParser
 from enum import Enum
+from pprint import pprint
 from uuid import uuid4
 
+from cc_core.commons.engines import engine_to_runtime
 from cc_core.commons.exceptions import print_exception, exception_format
 from cc_core.commons.files import load_and_read
+from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
 from cc_core.commons.red import red_validation
 from cc_core.commons.red_to_blue import convert_red_to_blue
+from cc_faice.commons.docker import env_vars, DockerManager
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
 
 PYTHON_INTERPRETER = 'python3'
-BLUE_FILE_CONTAINER_PATH = '/tmp/red/exec/blue_file.json'
-BLUE_AGENT_CONTAINER_PATH = '/tmp/red/exec/blue_agent.py'
-CONTAINER_OUTPUT_DIRECTORY = '/tmp/red/outputs/'
+BLUE_FILE_CONTAINER_PATH = '/tmp/red_exec/blue_file.json'
+BLUE_AGENT_CONTAINER_PATH = '/tmp/red_exec/blue_agent.py'
+CONTAINER_OUTPUT_DIRECTORY = '/outputs'
+CONTAINER_WORK_DIRECTORY = None
 
 
 def attach_args(parser):
@@ -94,12 +101,12 @@ def main():
 def run(red_file,
         # variables,
         # format,
-        # disable_pull,
+        disable_pull,
         leave_container,
-        # preserve_environment,
+        preserve_environment,
         # non_interactive,
         # prefix,
-        # insecure,
+        insecure,
         output_mode,
         **_
         ):
@@ -107,12 +114,12 @@ def run(red_file,
     Executes a RED Experiment
     :param red_file: The path or URL to the RED File to execute
     # :param variables: A path or URL to an variables file
-    # :param disable_pull:
+    :param disable_pull: If True the docker image is not pulled from an registry
     :param leave_container:
-    # :param preserve_environment:
+    :param preserve_environment: List of environment variables to preserve inside the docker container.
     # :param non_interactive:
     # :param prefix:
-    # :param insecure:
+    :param insecure: Allow insecure capabilities
     :param output_mode: Either Connectors or Directory. If Directory Connectors, the blue agent will try to execute
     the output connectors, if Directory faice will mount an outputs directory and the blue agent will move the output
     files into this directory.
@@ -134,46 +141,107 @@ def run(red_file,
 
         # docker settings
         docker_image = red_data['container']['settings']['image']['url']
+        ram = red_data['container']['settings'].get('ram')
+        runtime = engine_to_runtime(red_data['container']['engine'])
 
-        host_outputs_dir = None  # TODO
+        environment = env_vars(preserve_environment)
+
+        # gpus
+        gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
+        gpu_devices = get_devices(red_data['container']['engine'])
+        gpus = match_gpus(gpu_devices, gpu_requirements)
+
+        # create docker manager
+        docker_manager = DockerManager()
+
+        registry_auth = red_data['container']['settings']['image'].get('auth')
+
+        if not disable_pull:
+            docker_manager.pull(docker_image, auth=registry_auth)
+
         if len(blue_batches) == 1:
             host_outputs_dir = 'outputs'
         else:
             host_outputs_dir = 'outputs_{batch_index}'
 
         for batch_index, blue_batch in enumerate(blue_batches):
-            run_blue_batch(blue_batch,
-                           docker_image,
-                           blue_agent_host_path,
-                           host_outputs_dir,
-                           output_mode,
-                           leave_container,
-                           batch_index)
+            run_blue_batch(blue_batch=blue_batch,
+                           docker_manager=docker_manager,
+                           docker_image=docker_image,
+                           blue_agent_host_path=blue_agent_host_path,
+                           host_outputs_dir=host_outputs_dir,
+                           output_mode=output_mode,
+                           leave_container=leave_container,
+                           batch_index=batch_index,
+                           ram=ram,
+                           gpus=gpus,
+                           environment=environment,
+                           runtime=runtime,
+                           insecure=insecure)
     except Exception as e:
-        print_exception(e)
-        result['debugInfo'] = exception_format()
-        result['state'] = 'failed'
+        raise
+        # print_exception(e)
+        # result['debugInfo'] = exception_format()
+        # result['state'] = 'failed'
+
+
+def _get_blue_batch_mount_keys(blue_batch, output_mode):
+    """
+    Returns a list of input/output keys, that use mounting connectors
+    :param blue_batch: The blue batch to analyse
+    :param output_mode: The output mode for this batch.
+    Output connectors are evaluated only, if output_mode == Connectors
+    :return: A list of input/outputs keys as strings
+    """
+    mount_connectors = []
+
+    # check input keys
+    for input_key, input_value in blue_batch['inputs'].items():
+        connector = input_value.get('connector')
+        if connector and connector.get('mount', False):
+            mount_connectors.append(input_key)
+
+    # check output keys
+    if output_mode == OutputMode.Connectors:
+        outputs = blue_batch.get('outputs')
+        if outputs:
+            for output_key, output_value in outputs.items():
+                connector = output_value.get('connector')
+                if connector and connector.get('mount', False):
+                    mount_connectors.append(output_key)
+
+    return mount_connectors
 
 
 def run_blue_batch(blue_batch,
-                   image,
+                   docker_manager,
+                   docker_image,
                    blue_agent_host_path,
                    host_outputs_dir,
                    output_mode,
                    leave_container,
                    batch_index,
-                   ram):
+                   ram,
+                   gpus,
+                   environment,
+                   runtime,
+                   insecure):
     """
     Executes an blue agent inside a docker container that takes the given blue batch as argument.
     :param blue_batch: The blue batch to execute
-    :param image: The docker image url to use. This docker image should be already present on the host machine
+    :param docker_manager: The docker manager to use for executing the batch
+    :param docker_image: The docker image url to use. This docker image should be already present on the host machine
     :param blue_agent_host_path: The path to the blue agent to execute
     :param host_outputs_dir: The outputs directory of the host.
     :param output_mode: If output mode == Connectors the blue agent will be started with '--outputs' flag
     Otherwise this function will mount the CONTAINER_OUTPUT_DIRECTORY
     :param leave_container: If True, the started container will not be stopped after execution.
     :param batch_index: The index of the current batch
-    :param ram: TODO
+    :param ram: The RAM limit for the docker container, given in MB
+    :param gpus: The gpus to use for this batch execution
+    :param environment: The environment to use for the docker container
+    :param runtime: The docker runtime to use
+    :param insecure: Allow insecure capabilities
     :return: A container result as dictionary
     """
     container_name = str(uuid4())
@@ -186,13 +254,47 @@ def run_blue_batch(blue_batch,
 
     rw_mappings = []
     if output_mode == OutputMode.Directory:
-        rw_mappings.append([host_outputs_dir.format(batch_index=batch_index), CONTAINER_OUTPUT_DIRECTORY])
+        abs_host_outputs_dir = os.path.abspath(host_outputs_dir.format(batch_index=batch_index))
+        rw_mappings.append([abs_host_outputs_dir, CONTAINER_OUTPUT_DIRECTORY])
 
-    working_directory = blue_batch['workDir']
+        # create host output directory
+        os.makedirs(abs_host_outputs_dir, exist_ok=True)
 
-    # EXECUTE
+    working_directory = CONTAINER_WORK_DIRECTORY
+
+    is_mounting = define_is_mounting(blue_batch, insecure, output_mode)
+
+    ccagent_data = docker_manager.run_container(
+        name=container_name,
+        image=docker_image,
+        command=command,
+        ro_mappings=ro_mappings,
+        rw_mappings=rw_mappings,
+        work_dir=working_directory,
+        leave_container=leave_container,
+        ram=ram,
+        runtime=runtime,
+        gpus=gpus,
+        environment=environment,
+        enable_fuse=is_mounting
+    )
+
+    print('ccagent_data:')
+    pprint(ccagent_data)
 
     blue_file.close()
+
+
+def define_is_mounting(blue_batch, insecure, output_mode):
+    mount_connectors = _get_blue_batch_mount_keys(blue_batch, output_mode)
+    if mount_connectors:
+        if not insecure:
+            raise Exception('The following keys are mounting directories {}.\nTo enable mounting inside '
+                            'a docker container run faice with --insecure (see --help).\n'
+                            'Be aware that this will enable SYS_ADMIN capabilities in order to enable FUSE mounts.'
+                            .format(mount_connectors))
+        return True
+    return False
 
 
 def _create_json_file(data):
@@ -201,7 +303,7 @@ def _create_json_file(data):
     :param data: The data to write to the temporary file
     :return: A NamedTemporaryFile
     """
-    f = tempfile.NamedTemporaryFile()
+    f = tempfile.NamedTemporaryFile(mode='w')
     json.dump(data, f)
     f.seek(0)
     f.flush()
@@ -213,7 +315,7 @@ def _create_blue_agent_command():
     Defines the command to execute inside the docker container to execute the blue agent.
     :return: A list of strings to execute inside the docker container.
     """
-    return [PYTHON_INTERPRETER, BLUE_AGENT_CONTAINER_PATH, BLUE_FILE_CONTAINER_PATH]
+    return [PYTHON_INTERPRETER, BLUE_AGENT_CONTAINER_PATH, BLUE_FILE_CONTAINER_PATH, '--debug']
 
 
 def get_blue_agent_host_path():

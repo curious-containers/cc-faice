@@ -13,12 +13,11 @@ import json
 
 from argparse import ArgumentParser
 from enum import Enum
-from pprint import pprint
 from uuid import uuid4
 
 from cc_core.commons.engines import engine_to_runtime
-from cc_core.commons.exceptions import print_exception, exception_format
-from cc_core.commons.files import load_and_read
+from cc_core.commons.exceptions import print_exception, exception_format, AgentError
+from cc_core.commons.files import load_and_read, dump_print
 from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
 from cc_core.commons.red import red_validation
 from cc_core.commons.red_to_blue import convert_red_to_blue
@@ -94,8 +93,16 @@ class OutputMode(Enum):
 
 def main():
     args = _get_commandline_args()
-    run(**args.__dict__,
-        output_mode=OutputMode.Connectors if args.outputs else OutputMode.Directory)
+    result = run(**args.__dict__,
+                 output_mode=OutputMode.Connectors if args.outputs else OutputMode.Directory)
+
+    if args.debug:
+        dump_print(result, args.format)
+
+    if result['state'] != 'succeeded':
+        return 1
+
+    return 0
 
 
 def run(red_file,
@@ -165,24 +172,29 @@ def run(red_file,
             host_outputs_dir = 'outputs_{batch_index}'
 
         for batch_index, blue_batch in enumerate(blue_batches):
-            run_blue_batch(blue_batch=blue_batch,
-                           docker_manager=docker_manager,
-                           docker_image=docker_image,
-                           blue_agent_host_path=blue_agent_host_path,
-                           host_outputs_dir=host_outputs_dir,
-                           output_mode=output_mode,
-                           leave_container=leave_container,
-                           batch_index=batch_index,
-                           ram=ram,
-                           gpus=gpus,
-                           environment=environment,
-                           runtime=runtime,
-                           insecure=insecure)
+            container_execution_result = run_blue_batch(blue_batch=blue_batch,
+                                                        docker_manager=docker_manager,
+                                                        docker_image=docker_image,
+                                                        blue_agent_host_path=blue_agent_host_path,
+                                                        host_outputs_dir=host_outputs_dir,
+                                                        output_mode=output_mode,
+                                                        leave_container=leave_container,
+                                                        batch_index=batch_index,
+                                                        ram=ram,
+                                                        gpus=gpus,
+                                                        environment=environment,
+                                                        runtime=runtime,
+                                                        insecure=insecure)
+
+            # handle execution result
+            result['containers'].append(container_execution_result.to_dict())
+            container_execution_result.raise_for_state()
     except Exception as e:
-        raise
-        # print_exception(e)
-        # result['debugInfo'] = exception_format()
-        # result['state'] = 'failed'
+        print_exception(e)
+        result['debugInfo'] = exception_format()
+        result['state'] = 'failed'
+
+    return result
 
 
 def _get_blue_batch_mount_keys(blue_batch, output_mode):
@@ -211,6 +223,58 @@ def _get_blue_batch_mount_keys(blue_batch, output_mode):
                     mount_connectors.append(output_key)
 
     return mount_connectors
+
+
+class ExecutionResultType(Enum):
+    Succeeded = 0
+    Failed = 1
+
+    def __str__(self):
+        return self.name.lower()
+
+
+class ContainerExecutionResult:
+    def __init__(self, state, command, container_name, volumes, agent_execution_result, agent_std_err):
+        """
+        Creates a new Container Execution Result
+        :param state: The state of the agent execution ('failed', 'successful')
+        :param command: The command, that executes the blue agent inside the docker container
+        :param container_name: The name of the docker container
+        :param volumes: The volumes and binds mounted into the docker container
+        :param agent_execution_result: The parsed json output of the blue agent
+        :param agent_std_err: The std err as list of string of the blue agent
+        """
+        self.state = state
+        self.command = command
+        self.container_name = container_name
+        self.volumes = volumes
+        self.agent_execution_result = agent_execution_result
+        self.agent_std_err = agent_std_err
+
+    def successful(self):
+        return self.state == ExecutionResultType.Succeeded
+
+    def to_dict(self):
+        """
+        Transforms self into a dictionary representation.
+        :return: self as dictionary
+        """
+        return {
+            'state': str(self.state),
+            'command': self.command,
+            'containerName': self.container_name,
+            'volumes': self.volumes,
+            'agentStdOut': self.agent_execution_result,
+            'agentStdErr': self.agent_std_err
+        }
+
+    def raise_for_state(self):
+        """
+        Raises an AgentError, if state is not successful.
+        :raise AgentError: If state is not successful
+        """
+        if not self.successful():
+            raise AgentError(self.agent_std_err)
 
 
 def run_blue_batch(blue_batch,
@@ -244,11 +308,14 @@ def run_blue_batch(blue_batch,
     :param insecure: Allow insecure capabilities
     :return: A container result as dictionary
     """
+
     container_name = str(uuid4())
+
     command = _create_blue_agent_command()
 
     blue_file = _create_json_file(blue_batch)
 
+    # binds
     ro_mappings = [[blue_file.name, BLUE_FILE_CONTAINER_PATH],
                    [blue_agent_host_path, BLUE_AGENT_CONTAINER_PATH]]
 
@@ -259,6 +326,8 @@ def run_blue_batch(blue_batch,
 
         # create host output directory
         os.makedirs(abs_host_outputs_dir, exist_ok=True)
+
+    volumes = {'readOnly': ro_mappings, 'readWrite': rw_mappings}
 
     working_directory = CONTAINER_WORK_DIRECTORY
 
@@ -279,10 +348,21 @@ def run_blue_batch(blue_batch,
         enable_fuse=is_mounting
     )
 
-    print('ccagent_data:')
-    pprint(ccagent_data)
+    if ccagent_data[0]['state'] == 'succeeded':
+        state = ExecutionResultType.Succeeded
+    else:
+        state = ExecutionResultType.Failed
+
+    container_result = ContainerExecutionResult(state,
+                                                command,
+                                                container_name,
+                                                volumes,
+                                                ccagent_data[0],
+                                                ccagent_data[1])
 
     blue_file.close()
+
+    return container_result
 
 
 def define_is_mounting(blue_batch, insecure, output_mode):

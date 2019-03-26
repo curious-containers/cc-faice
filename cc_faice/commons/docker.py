@@ -184,6 +184,7 @@ class DockerManager:
         try:
             std_out = read(std_out, 'CCAGENT_OUTPUT')
         except Exception:
-            raise AgentError(std_err)
+            raise AgentError('Could not parse stdout of agent.\nAgent stdout:\n{}\nAgent stderr:\n{}'
+                             .format(std_out, std_err))
 
         return std_out, std_err

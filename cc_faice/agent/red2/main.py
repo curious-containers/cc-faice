@@ -326,6 +326,8 @@ def run_blue_batch(blue_batch,
 
         # create host output directory
         os.makedirs(abs_host_outputs_dir, exist_ok=True)
+    elif output_mode == OutputMode.Connectors:
+        command.append('--outputs')
 
     volumes = {'readOnly': ro_mappings, 'readWrite': rw_mappings}
 

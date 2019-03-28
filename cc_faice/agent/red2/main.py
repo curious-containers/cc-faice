@@ -15,7 +15,7 @@ from argparse import ArgumentParser
 from enum import Enum
 from uuid import uuid4
 
-from cc_core.commons.engines import engine_to_runtime
+from cc_core.commons.engines import engine_to_runtime, engine_validation
 from cc_core.commons.exceptions import print_exception, exception_format, AgentError
 from cc_core.commons.files import load_and_read, dump_print
 from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
@@ -140,7 +140,10 @@ def run(red_file,
 
     try:
         red_data = load_and_read(red_file, 'REDFILE')
+
+        # validation
         red_validation(red_data, output_mode == OutputMode.Directory, container_requirement=True)
+        engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], optional=False)
 
         blue_batches = convert_red_to_blue(red_data)
 
@@ -150,7 +153,6 @@ def run(red_file,
         docker_image = red_data['container']['settings']['image']['url']
         ram = red_data['container']['settings'].get('ram')
         runtime = engine_to_runtime(red_data['container']['engine'])
-
         environment = env_vars(preserve_environment)
 
         # gpus
@@ -161,9 +163,8 @@ def run(red_file,
         # create docker manager
         docker_manager = DockerManager()
 
-        registry_auth = red_data['container']['settings']['image'].get('auth')
-
         if not disable_pull:
+            registry_auth = red_data['container']['settings']['image'].get('auth')
             docker_manager.pull(docker_image, auth=registry_auth)
 
         if len(blue_batches) == 1:

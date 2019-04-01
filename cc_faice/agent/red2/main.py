@@ -21,6 +21,7 @@ from cc_core.commons.files import load_and_read, dump_print
 from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
 from cc_core.commons.red import red_validation
 from cc_core.commons.red_to_blue import convert_red_to_blue
+from cc_core.commons.templates import complete_red_data
 from cc_faice.commons.docker import env_vars, DockerManager
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
@@ -78,6 +79,10 @@ def attach_args(parser):
         '--prefix', action='store', type=str, metavar='PREFIX', default='faice_',
         help='PREFIX for files dumped to storage, default is "faice_".'
     )
+    parser.add_argument(
+        '--keyring-service', action='store', type=str, metavar='PREFIX', default='red',
+        help='PREFIX for files dumped to storage, default is "red".'
+    )
 
 
 def _get_commandline_args():
@@ -111,10 +116,11 @@ def run(red_file,
         disable_pull,
         leave_container,
         preserve_environment,
-        # non_interactive,
+        non_interactive,
         # prefix,
         insecure,
         output_mode,
+        keyring_service,
         **_
         ):
     """
@@ -124,10 +130,11 @@ def run(red_file,
     :param disable_pull: If True the docker image is not pulled from an registry
     :param leave_container:
     :param preserve_environment: List of environment variables to preserve inside the docker container.
-    # :param non_interactive:
+    :param non_interactive: If True, unresolved template values are not asked interactively
     # :param prefix:
     :param insecure: Allow insecure capabilities
     :param output_mode: Either Connectors or Directory. If Directory Connectors, the blue agent will try to execute
+    :param keyring_service: The keyring service name to use for template substitution
     the output connectors, if Directory faice will mount an outputs directory and the blue agent will move the output
     files into this directory.
     """
@@ -145,6 +152,7 @@ def run(red_file,
         red_validation(red_data, output_mode == OutputMode.Directory, container_requirement=True)
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], optional=False)
 
+        complete_red_data(red_data, keyring_service, non_interactive)
         blue_batches = convert_red_to_blue(red_data)
 
         blue_agent_host_path = get_blue_agent_host_path()

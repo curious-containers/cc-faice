@@ -80,8 +80,8 @@ def attach_args(parser):
         help='PREFIX for files dumped to storage, default is "faice_".'
     )
     parser.add_argument(
-        '--keyring-service', action='store', type=str, metavar='PREFIX', default='red',
-        help='PREFIX for files dumped to storage, default is "red".'
+        '--keyring-service', action='store', type=str, metavar='KEYRING_SERVICE', default='red',
+        help='Keyring service to resolve template values, default is "red".'
     )
 
 

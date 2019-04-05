@@ -13,7 +13,6 @@ import json
 
 from argparse import ArgumentParser
 from enum import Enum
-from pprint import pprint
 from uuid import uuid4
 
 from cc_core.commons.engines import engine_to_runtime, engine_validation
@@ -38,11 +37,6 @@ def attach_args(parser):
     parser.add_argument(
         'red_file', action='store', type=str, metavar='REDFILE',
         help='REDFILE (json or yaml) containing an experiment description as local PATH or http URL.'
-    )
-    parser.add_argument(
-        '-v', '--variables', action='store', type=str, metavar='VARFILE',
-        help='VARFILE (json or yaml) containing key-value pairs for variables in REDFILE as '
-             'local PATH or http URL.'
     )
     parser.add_argument(
         '-o', '--outputs', action='store_true',
@@ -77,10 +71,6 @@ def attach_args(parser):
         help='Enable SYS_ADMIN capabilities in container, if REDFILE contains connectors performing FUSE mounts.'
     )
     parser.add_argument(
-        '--prefix', action='store', type=str, metavar='PREFIX', default='faice_',
-        help='PREFIX for files dumped to storage, default is "faice_".'
-    )
-    parser.add_argument(
         '--keyring-service', action='store', type=str, metavar='KEYRING_SERVICE', default='red',
         help='Keyring service to resolve template values, default is "red".'
     )
@@ -112,13 +102,10 @@ def main():
 
 
 def run(red_file,
-        # variables,
-        # format,
         disable_pull,
         leave_container,
         preserve_environment,
         non_interactive,
-        # prefix,
         insecure,
         output_mode,
         keyring_service,
@@ -127,17 +114,14 @@ def run(red_file,
     """
     Executes a RED Experiment
     :param red_file: The path or URL to the RED File to execute
-    # :param variables: A path or URL to an variables file
     :param disable_pull: If True the docker image is not pulled from an registry
     :param leave_container:
     :param preserve_environment: List of environment variables to preserve inside the docker container.
     :param non_interactive: If True, unresolved template values are not asked interactively
-    # :param prefix:
     :param insecure: Allow insecure capabilities
     :param output_mode: Either Connectors or Directory. If Directory Connectors, the blue agent will try to execute
-    :param keyring_service: The keyring service name to use for template substitution
-    the output connectors, if Directory faice will mount an outputs directory and the blue agent will move the output
-    files into this directory.
+    :param keyring_service: The keyring service name to use for template substitution the output connectors, if
+    Directory faice will mount an outputs directory and the blue agent will move the output files into this directory.
     """
 
     result = {

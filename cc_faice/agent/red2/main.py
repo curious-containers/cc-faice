@@ -13,6 +13,7 @@ import json
 
 from argparse import ArgumentParser
 from enum import Enum
+from pprint import pprint
 from uuid import uuid4
 
 from cc_core.commons.engines import engine_to_runtime, engine_validation
@@ -21,7 +22,7 @@ from cc_core.commons.files import load_and_read, dump_print
 from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
 from cc_core.commons.red import red_validation
 from cc_core.commons.red_to_blue import convert_red_to_blue
-from cc_core.commons.templates import complete_red_data
+from cc_core.commons.templates import complete_red_templates, get_secret_values, normalize_keys
 from cc_faice.commons.docker import env_vars, DockerManager
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
@@ -145,6 +146,8 @@ def run(red_file,
         'state': 'succeeded'
     }
 
+    secret_values = None
+
     try:
         red_data = load_and_read(red_file, 'REDFILE')
 
@@ -152,16 +155,21 @@ def run(red_file,
         red_validation(red_data, output_mode == OutputMode.Directory, container_requirement=True)
         engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], optional=False)
 
-        complete_red_data(red_data, keyring_service, non_interactive)
-        blue_batches = convert_red_to_blue(red_data)
+        # templates and secrets
+        complete_red_templates(red_data, keyring_service, non_interactive)
+        secret_values = get_secret_values(red_data)
+        normalize_keys(red_data)
 
-        blue_agent_host_path = get_blue_agent_host_path()
+        # process red data
+        blue_batches = convert_red_to_blue(red_data)
 
         # docker settings
         docker_image = red_data['container']['settings']['image']['url']
         ram = red_data['container']['settings'].get('ram')
         runtime = engine_to_runtime(red_data['container']['engine'])
         environment = env_vars(preserve_environment)
+
+        blue_agent_host_path = get_blue_agent_host_path()
 
         # gpus
         gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
@@ -199,8 +207,8 @@ def run(red_file,
             result['containers'].append(container_execution_result.to_dict())
             container_execution_result.raise_for_state()
     except Exception as e:
-        print_exception(e)
-        result['debugInfo'] = exception_format()
+        print_exception(e, secret_values)
+        result['debugInfo'] = exception_format(secret_values)
         result['state'] = 'failed'
 
     return result

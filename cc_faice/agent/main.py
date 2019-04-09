@@ -1,8 +1,6 @@
 from collections import OrderedDict
 
 from cc_faice.agent.red.main import main as red_main
-from cc_faice.agent.red2.main import main as red2_main
-
 from cc_faice.agent.red.main import DESCRIPTION as RED_DESCRIPTION
 
 from cc_core.commons.cli_modes import cli_modes
@@ -13,7 +11,6 @@ TITLE = 'modes'
 DESCRIPTION = 'Run a RED experiment.'
 MODES = OrderedDict([
     ('red', {'main': red_main, 'description': RED_DESCRIPTION}),
-    ('red2', {'main': red2_main, 'description': RED_DESCRIPTION})
 ])
 
 

@@ -1,32 +1,42 @@
+"""
+                Host            Container
+blue_file       <tempfile>      /tmp/red_exec/blue_file.yml
+blue_agent      <import...>     /tmp/red_exec/blue_agent.py
+outputs         ./outputs       /outputs/
+inputs          -               /tmp/red/inputs/
+working dir     -               -
+"""
 import os
-import stat
-from uuid import uuid4
+
+import tempfile
+import json
+
 from argparse import ArgumentParser
+from enum import Enum
+from uuid import uuid4
 
-from cc_core.commons.files import load_and_read, dump, dump_print, file_extension, is_local
-from cc_core.commons.exceptions import exception_format, RedValidationError, print_exception, ArgumentError
-from cc_core.commons.red import red_validation, red_get_mount_connectors
-from cc_core.commons.templates import fill_validation, fill_template, inspect_templates_and_secrets
-from cc_core.commons.engines import engine_validation, engine_to_runtime
-from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, get_devices
-from cc_core.commons.mnt_core import module_dependencies, interpreter_dependencies
-from cc_core.commons.mnt_core import module_destinations, interpreter_destinations, interpreter_command
-
-from cc_faice.commons.docker import DockerManager, docker_result_check, env_vars
-
+from cc_core.commons.engines import engine_to_runtime, engine_validation
+from cc_core.commons.exceptions import print_exception, exception_format, AgentError
+from cc_core.commons.files import load_and_read, dump_print
+from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
+from cc_core.commons.red import red_validation
+from cc_core.commons.red_to_blue import convert_red_to_blue
+from cc_core.commons.templates import complete_red_templates, get_secret_values, normalize_keys
+from cc_faice.commons.docker import env_vars, DockerManager
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
+
+PYTHON_INTERPRETER = 'python3'
+BLUE_FILE_CONTAINER_PATH = '/tmp/red_exec/blue_file.json'
+BLUE_AGENT_CONTAINER_PATH = '/tmp/red_exec/blue_agent.py'
+CONTAINER_OUTPUT_DIRECTORY = '/outputs'
+CONTAINER_WORK_DIRECTORY = None
 
 
 def attach_args(parser):
     parser.add_argument(
         'red_file', action='store', type=str, metavar='REDFILE',
         help='REDFILE (json or yaml) containing an experiment description as local PATH or http URL.'
-    )
-    parser.add_argument(
-        '-v', '--variables', action='store', type=str, metavar='VARFILE',
-        help='VARFILE (json or yaml) containing key-value pairs for variables in REDFILE as '
-             'local PATH or http URL.'
     )
     parser.add_argument(
         '-o', '--outputs', action='store_true',
@@ -61,40 +71,59 @@ def attach_args(parser):
         help='Enable SYS_ADMIN capabilities in container, if REDFILE contains connectors performing FUSE mounts.'
     )
     parser.add_argument(
-        '--prefix', action='store', type=str, metavar='PREFIX', default='faice_',
-        help='PREFIX for files dumped to storage, default is "faice_".'
+        '--keyring-service', action='store', type=str, metavar='KEYRING_SERVICE', default='red',
+        help='Keyring service to resolve template values, default is "red".'
     )
 
 
-def main():
+def _get_commandline_args():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
-    args = parser.parse_args()
-    result = run(**args.__dict__)
+    return parser.parse_args()
 
-    format = args.__dict__['format']
-    debug = args.__dict__['debug']
-    if debug:
-        dump_print(result, format)
 
-    if result['state'] == 'succeeded':
-        return 0
+class OutputMode(Enum):
+    Connectors = 0
+    Directory = 1
 
-    return 1
+
+def main():
+    args = _get_commandline_args()
+    result = run(**args.__dict__,
+                 output_mode=OutputMode.Connectors if args.outputs else OutputMode.Directory)
+
+    if args.debug:
+        dump_print(result, args.format)
+
+    if result['state'] != 'succeeded':
+        return 1
+
+    return 0
 
 
 def run(red_file,
-        variables,
-        outputs,
-        format,
         disable_pull,
         leave_container,
         preserve_environment,
         non_interactive,
-        prefix,
         insecure,
+        output_mode,
+        keyring_service,
         **_
         ):
+    """
+    Executes a RED Experiment
+    :param red_file: The path or URL to the RED File to execute
+    :param disable_pull: If True the docker image is not pulled from an registry
+    :param leave_container:
+    :param preserve_environment: List of environment variables to preserve inside the docker container.
+    :param non_interactive: If True, unresolved template values are not asked interactively
+    :param insecure: Allow insecure capabilities
+    :param output_mode: Either Connectors or Directory. If Directory Connectors, the blue agent will try to execute
+    :param keyring_service: The keyring service name to use for template substitution the output connectors, if
+    Directory faice will mount an outputs directory and the blue agent will move the output files into this directory.
+    """
+
     result = {
         'containers': [],
         'debugInfo': None,
@@ -102,219 +131,280 @@ def run(red_file,
     }
 
     secret_values = None
-    ext = file_extension(format)
-    dumped_variables_file = '{}variables.{}'.format(prefix, ext)
-    dumped_red_file = '{}red.{}'.format(prefix, ext)
 
     try:
-        import cc_core.agent.red.__main__
-
-        source_paths, c_source_paths = module_dependencies([cc_core.agent.red.__main__])
-        module_mounts = module_destinations(source_paths)
-        interpreter_deps = interpreter_dependencies(c_source_paths)
-        interpreter_mounts = interpreter_destinations(interpreter_deps)
-
         red_data = load_and_read(red_file, 'REDFILE')
-        ignore_outputs = not outputs
-        red_validation(red_data, ignore_outputs, container_requirement=True)
 
-        mount_connectors = red_get_mount_connectors(red_data, ignore_outputs)
-        is_mounting = False
-        if mount_connectors:
-            if not insecure:
-                raise Exception('The following inputs are mounting directories {}.\nTo enable mounting inside '
-                                'a docker container run faice with --insecure (see --help).\n'
-                                'Be aware that this will enable SYS_ADMIN capabilities in order to enable FUSE mounts.'
-                                .format(mount_connectors))
-            is_mounting = True
+        # validation
+        red_validation(red_data, output_mode == OutputMode.Directory, container_requirement=True)
+        engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], optional=False)
 
-        engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], 'faice agent red')
+        # templates and secrets
+        complete_red_templates(red_data, keyring_service, non_interactive)
+        secret_values = get_secret_values(red_data)
+        normalize_keys(red_data)
 
-        # delete unused keys to avoid unnecessary variables handling
-        if 'execution' in red_data:
-            del red_data['execution']
+        # process red data
+        blue_batches = convert_red_to_blue(red_data)
 
-        if disable_pull and 'auth' in red_data['container']['settings']['image']:
-            del red_data['container']['settings']['image']['auth']
-
-        if not outputs:
-            if 'outputs' in red_data:
-                del red_data['outputs']
-
-            for batch in red_data.get('batches', []):
-                if 'outputs' in batch:
-                    del batch['outputs']
-        else:
-            # check if outputs section is available
-            if 'inputs' in red_data:
-                if 'outputs' not in red_data:
-                    raise ArgumentError(
-                        '-o/--outputs argument is set, but no outputs section with RED connector settings is defined '
-                        'in REDFILE'
-                    )
-            else:
-                for i, batch in enumerate(red_data['batches']):
-                    if 'outputs' not in batch:
-                        raise ArgumentError(
-                            '-o/--outputs argument is set, but no outputs section with RED connector settings is '
-                            'defined in batch {} of REDFILE'.format(i)
-                        )
-
-        variables_data = None
-        if variables is not None:
-            variables_data = load_and_read(variables, 'VARFILE')
-            fill_validation(variables_data)
-
-        template_keys_and_values, secret_values, incomplete_variables_file = inspect_templates_and_secrets(
-            red_data, variables_data, non_interactive
-        )
-
-        if incomplete_variables_file:
-            dump(template_keys_and_values, format, dumped_variables_file)
-            variables = dumped_variables_file
-        elif variables is not None and not is_local(variables):
-            dump(variables_data, format, dumped_variables_file)
-            variables = dumped_variables_file
-
-        if not is_local(red_file):
-            dump(red_data, format, dumped_red_file)
-            red_file = dumped_red_file
-
-        docker_manager = DockerManager()
-
+        # docker settings
+        docker_image = red_data['container']['settings']['image']['url']
+        ram = red_data['container']['settings'].get('ram')
         runtime = engine_to_runtime(red_data['container']['engine'])
+        environment = env_vars(preserve_environment)
 
+        blue_agent_host_path = get_blue_agent_host_path()
+
+        # gpus
         gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
         gpu_devices = get_devices(red_data['container']['engine'])
         gpus = match_gpus(gpu_devices, gpu_requirements)
 
-        ram = red_data['container']['settings'].get('ram')
-        image = red_data['container']['settings']['image']['url']
-        registry_auth = red_data['container']['settings']['image'].get('auth')
-        registry_auth = fill_template(registry_auth, template_keys_and_values, True, True)
+        # create docker manager
+        docker_manager = DockerManager()
 
         if not disable_pull:
-            docker_manager.pull(image, auth=registry_auth)
+            registry_auth = red_data['container']['settings']['image'].get('auth')
+            docker_manager.pull(docker_image, auth=registry_auth)
 
-    except RedValidationError as e:
-        result['debugInfo'] = exception_format(secret_values=secret_values)
-        result['state'] = 'failed'
-        print_exception(e, secret_values)
-        return result
+        if len(blue_batches) == 1:
+            host_outputs_dir = 'outputs'
+        else:
+            host_outputs_dir = 'outputs_{batch_index}'
+
+        for batch_index, blue_batch in enumerate(blue_batches):
+            container_execution_result = run_blue_batch(blue_batch=blue_batch,
+                                                        docker_manager=docker_manager,
+                                                        docker_image=docker_image,
+                                                        blue_agent_host_path=blue_agent_host_path,
+                                                        host_outputs_dir=host_outputs_dir,
+                                                        output_mode=output_mode,
+                                                        leave_container=leave_container,
+                                                        batch_index=batch_index,
+                                                        ram=ram,
+                                                        gpus=gpus,
+                                                        environment=environment,
+                                                        runtime=runtime,
+                                                        insecure=insecure)
+
+            # handle execution result
+            result['containers'].append(container_execution_result.to_dict())
+            container_execution_result.raise_for_state()
     except Exception as e:
-        result['debugInfo'] = exception_format()
-        result['state'] = 'failed'
         print_exception(e, secret_values)
-        return result
-
-    batches = [None]
-    if 'batches' in red_data:
-        batches = list(range(len(red_data['batches'])))
-
-    for batch in batches:
-        container_result = {
-            'command': None,
-            'name': None,
-            'volumes': {
-                'readOnly': None,
-                'readWrite': None
-            },
-            'ccagent': None,
-            'debugInfo': None,
-            'state': 'succeeded'
-        }
-        result['containers'].append(container_result)
-        try:
-            if batch is None:
-                outputs_dir = 'outputs'
-            else:
-                outputs_dir = 'outputs_{}'.format(batch)
-
-            mapped_outputs_dir = '/red/outputs'
-            mapped_red_file = '/red/red.{}'.format(ext)
-            mapped_variables_file = '/red/variables.{}'.format(ext)
-
-            container_name = str(uuid4())
-            container_result['name'] = container_name
-
-            command = interpreter_command()
-            command += [
-                '-m',
-                'cc_core.agent.red',
-                mapped_red_file,
-                '--debug',
-                '--format=json',
-                '--leave-directories'
-            ]
-
-            if batch is not None:
-                command.append('--batch={}'.format(batch))
-
-            if outputs:
-                command.append('--outputs')
-
-            if template_keys_and_values and variables is not None:
-                command.append('--variables={}'.format(mapped_variables_file))
-
-            command = ' '.join([str(c) for c in command])
-            command = "/bin/sh -c '{}'".format(command)
-
-            container_result['command'] = command
-
-            ro_mappings = [
-                [os.path.abspath(red_file), mapped_red_file],
-            ]
-            ro_mappings += module_mounts
-            ro_mappings += interpreter_mounts
-            rw_mappings = []
-
-            work_dir = None
-            old_outputs_dir_permissions = None
-
-            if not outputs:
-                rw_mappings.append([os.path.abspath(outputs_dir), mapped_outputs_dir])
-                work_dir = mapped_outputs_dir
-
-                if not os.path.exists(outputs_dir):
-                    os.makedirs(outputs_dir)
-                if os.getuid() != 1000:
-                    old_outputs_dir_permissions = os.stat(outputs_dir).st_mode
-                    os.chmod(outputs_dir, old_outputs_dir_permissions | stat.S_IWOTH)
-
-            if template_keys_and_values and variables is not None:
-                ro_mappings.append([os.path.abspath(variables), mapped_variables_file])
-
-            container_result['volumes']['readOnly'] = ro_mappings
-            container_result['volumes']['readWrite'] = rw_mappings
-
-            environment = env_vars(preserve_environment)
-
-            ccagent_data = docker_manager.run_container(
-                name=container_name,
-                image=image,
-                command=command,
-                ro_mappings=ro_mappings,
-                rw_mappings=rw_mappings,
-                work_dir=work_dir,
-                leave_container=leave_container,
-                ram=ram,
-                runtime=runtime,
-                gpus=gpus,
-                environment=environment,
-                enable_fuse=is_mounting
-            )
-            if old_outputs_dir_permissions is not None:
-                os.chmod(outputs_dir, old_outputs_dir_permissions)
-            container_result['ccagent'] = ccagent_data[0]
-            docker_result_check(ccagent_data)
-        except Exception as e:
-            container_result['debugInfo'] = exception_format()
-            container_result['state'] = 'failed'
-            result['state'] = 'failed'
-            print_exception(e, secret_values)
-            break
-
-    if os.path.exists(dumped_variables_file):
-        os.remove(dumped_variables_file)
+        result['debugInfo'] = exception_format(secret_values)
+        result['state'] = 'failed'
 
     return result
+
+
+def _get_blue_batch_mount_keys(blue_batch, output_mode):
+    """
+    Returns a list of input/output keys, that use mounting connectors
+    :param blue_batch: The blue batch to analyse
+    :param output_mode: The output mode for this batch.
+    Output connectors are evaluated only, if output_mode == Connectors
+    :return: A list of input/outputs keys as strings
+    """
+    mount_connectors = []
+
+    # check input keys
+    for input_key, input_value in blue_batch['inputs'].items():
+        connector = input_value.get('connector')
+        if connector and connector.get('mount', False):
+            mount_connectors.append(input_key)
+
+    # check output keys
+    if output_mode == OutputMode.Connectors:
+        outputs = blue_batch.get('outputs')
+        if outputs:
+            for output_key, output_value in outputs.items():
+                connector = output_value.get('connector')
+                if connector and connector.get('mount', False):
+                    mount_connectors.append(output_key)
+
+    return mount_connectors
+
+
+class ExecutionResultType(Enum):
+    Succeeded = 0
+    Failed = 1
+
+    def __str__(self):
+        return self.name.lower()
+
+
+class ContainerExecutionResult:
+    def __init__(self, state, command, container_name, volumes, agent_execution_result, agent_std_err):
+        """
+        Creates a new Container Execution Result
+        :param state: The state of the agent execution ('failed', 'successful')
+        :param command: The command, that executes the blue agent inside the docker container
+        :param container_name: The name of the docker container
+        :param volumes: The volumes and binds mounted into the docker container
+        :param agent_execution_result: The parsed json output of the blue agent
+        :param agent_std_err: The std err as list of string of the blue agent
+        """
+        self.state = state
+        self.command = command
+        self.container_name = container_name
+        self.volumes = volumes
+        self.agent_execution_result = agent_execution_result
+        self.agent_std_err = agent_std_err
+
+    def successful(self):
+        return self.state == ExecutionResultType.Succeeded
+
+    def to_dict(self):
+        """
+        Transforms self into a dictionary representation.
+        :return: self as dictionary
+        """
+        return {
+            'state': str(self.state),
+            'command': self.command,
+            'containerName': self.container_name,
+            'volumes': self.volumes,
+            'agentStdOut': self.agent_execution_result,
+            'agentStdErr': self.agent_std_err
+        }
+
+    def raise_for_state(self):
+        """
+        Raises an AgentError, if state is not successful.
+        :raise AgentError: If state is not successful
+        """
+        if not self.successful():
+            raise AgentError(self.agent_std_err)
+
+
+def run_blue_batch(blue_batch,
+                   docker_manager,
+                   docker_image,
+                   blue_agent_host_path,
+                   host_outputs_dir,
+                   output_mode,
+                   leave_container,
+                   batch_index,
+                   ram,
+                   gpus,
+                   environment,
+                   runtime,
+                   insecure):
+    """
+    Executes an blue agent inside a docker container that takes the given blue batch as argument.
+    :param blue_batch: The blue batch to execute
+    :param docker_manager: The docker manager to use for executing the batch
+    :param docker_image: The docker image url to use. This docker image should be already present on the host machine
+    :param blue_agent_host_path: The path to the blue agent to execute
+    :param host_outputs_dir: The outputs directory of the host.
+    :param output_mode: If output mode == Connectors the blue agent will be started with '--outputs' flag
+    Otherwise this function will mount the CONTAINER_OUTPUT_DIRECTORY
+    :param leave_container: If True, the started container will not be stopped after execution.
+    :param batch_index: The index of the current batch
+    :param ram: The RAM limit for the docker container, given in MB
+    :param gpus: The gpus to use for this batch execution
+    :param environment: The environment to use for the docker container
+    :param runtime: The docker runtime to use
+    :param insecure: Allow insecure capabilities
+    :return: A container result as dictionary
+    """
+
+    container_name = str(uuid4())
+
+    command = _create_blue_agent_command()
+
+    blue_file = _create_json_file(blue_batch)
+
+    # binds
+    ro_mappings = [[blue_file.name, BLUE_FILE_CONTAINER_PATH],
+                   [blue_agent_host_path, BLUE_AGENT_CONTAINER_PATH]]
+
+    rw_mappings = []
+    if output_mode == OutputMode.Directory:
+        abs_host_outputs_dir = os.path.abspath(host_outputs_dir.format(batch_index=batch_index))
+        rw_mappings.append([abs_host_outputs_dir, CONTAINER_OUTPUT_DIRECTORY])
+
+        # create host output directory
+        os.makedirs(abs_host_outputs_dir, exist_ok=True)
+    elif output_mode == OutputMode.Connectors:
+        command.append('--outputs')
+
+    volumes = {'readOnly': ro_mappings, 'readWrite': rw_mappings}
+
+    working_directory = CONTAINER_WORK_DIRECTORY
+
+    is_mounting = define_is_mounting(blue_batch, insecure, output_mode)
+
+    ccagent_data = docker_manager.run_container(
+        name=container_name,
+        image=docker_image,
+        command=command,
+        ro_mappings=ro_mappings,
+        rw_mappings=rw_mappings,
+        work_dir=working_directory,
+        leave_container=leave_container,
+        ram=ram,
+        runtime=runtime,
+        gpus=gpus,
+        environment=environment,
+        enable_fuse=is_mounting
+    )
+
+    if ccagent_data[0]['state'] == 'succeeded':
+        state = ExecutionResultType.Succeeded
+    else:
+        state = ExecutionResultType.Failed
+
+    container_result = ContainerExecutionResult(state,
+                                                command,
+                                                container_name,
+                                                volumes,
+                                                ccagent_data[0],
+                                                ccagent_data[1])
+
+    blue_file.close()
+
+    return container_result
+
+
+def define_is_mounting(blue_batch, insecure, output_mode):
+    mount_connectors = _get_blue_batch_mount_keys(blue_batch, output_mode)
+    if mount_connectors:
+        if not insecure:
+            raise Exception('The following keys are mounting directories {}.\nTo enable mounting inside '
+                            'a docker container run faice with --insecure (see --help).\n'
+                            'Be aware that this will enable SYS_ADMIN capabilities in order to enable FUSE mounts.'
+                            .format(mount_connectors))
+        return True
+    return False
+
+
+def _create_json_file(data):
+    """
+    Creates a temporary file that contains the given data in json format.
+    :param data: The data to write to the temporary file
+    :return: A NamedTemporaryFile
+    """
+    f = tempfile.NamedTemporaryFile(mode='w')
+    json.dump(data, f)
+    f.seek(0)
+    f.flush()
+    return f
+
+
+def _create_blue_agent_command():
+    """
+    Defines the command to execute inside the docker container to execute the blue agent.
+    :return: A list of strings to execute inside the docker container.
+    """
+    return [PYTHON_INTERPRETER, BLUE_AGENT_CONTAINER_PATH, BLUE_FILE_CONTAINER_PATH, '--debug']
+
+
+def get_blue_agent_host_path():
+    """
+    Returns the path of the blue agent in the host machine to mount into the docker container.
+    :return: The path to the blue agent
+    """
+    import cc_core.agent.blue.main as blue_main
+    return blue_main.__file__

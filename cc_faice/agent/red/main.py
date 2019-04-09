@@ -89,8 +89,12 @@ class OutputMode(Enum):
 
 def main():
     args = _get_commandline_args()
+    if args.outputs:
+        output_mode = OutputMode.Connectors
+    else:
+        output_mode = OutputMode.Directory
     result = run(**args.__dict__,
-                 output_mode=OutputMode.Connectors if args.outputs else OutputMode.Directory)
+                 output_mode=output_mode)
 
     if args.debug:
         dump_print(result, args.format)

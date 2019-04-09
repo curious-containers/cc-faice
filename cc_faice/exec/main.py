@@ -7,8 +7,7 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.templates import inspect_templates_and_secrets, fill_template, fill_validation
 from cc_core.commons.engines import engine_validation
 
-from cc_faice.agent.red.main import run as run_faice_agent_red
-
+from cc_faice.agent.red.main import run as run_faice_agent_red, OutputMode
 
 DESCRIPTION = 'Execute experiment according to execution engine defined in REDFILE.'
 
@@ -53,7 +52,14 @@ def run(red_file, variables, non_interactive, format, insecure):
     # exec via CC-FAICE
     # equivalent to `faice agent red --debug --outputs`
     if red_data['execution']['engine'] == 'ccfaice':
-        result = run_faice_agent_red(red_file, variables, True, format, None, None, None, None, None, insecure)
+        result = run_faice_agent_red(red_file=red_file,
+                                     disable_pull=False,
+                                     leave_container=False,
+                                     preserve_environment=[],
+                                     non_interactive=False,
+                                     insecure=insecure,
+                                     output_mode=OutputMode.Connectors,
+                                     keyring_service='red')
         dump_print(result, 'yaml')
 
         if result['state'] == 'succeeded':

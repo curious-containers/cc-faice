@@ -21,7 +21,8 @@ from cc_core.commons.files import load_and_read, dump_print
 from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
 from cc_core.commons.red import red_validation
 from cc_core.commons.red_to_blue import convert_red_to_blue
-from cc_faice.commons.templates import complete_red_templates, get_secret_values, normalize_keys
+from cc_core.commons.templates import get_secret_values
+from cc_faice.commons.templates import complete_red_templates, normalize_keys
 from cc_faice.commons.docker import env_vars, DockerManager
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
@@ -410,5 +411,5 @@ def get_blue_agent_host_path():
     Returns the path of the blue agent in the host machine to mount into the docker container.
     :return: The path to the blue agent
     """
-    import cc_core.agent.blue.main as blue_main
+    import cc_core.agent.blue.__main__ as blue_main
     return blue_main.__file__

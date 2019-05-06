@@ -5,7 +5,7 @@ import keyring
 from cc_core.commons.exceptions import TemplateError, ParsingError
 from cc_core.commons.parsing import split_into_parts
 from cc_core.commons.templates import TEMPLATE_SEPARATOR_START, TEMPLATE_SEPARATOR_END, get_dict_sub_key_string, \
-    get_list_sub_key_string, get_template_keys, is_template_key, is_protected_key
+    get_list_sub_key_string, get_template_keys, is_template_key
 
 
 def complete_red_templates(red_data, keyring_service, fail_if_interactive):
@@ -104,37 +104,6 @@ def _resolve_template_string(template_string, templates, key_string):
             result.append(p)
 
     return ''.join(result)
-
-
-def get_secret_values(red_data):
-    """
-    Returns a list of secret values found in the given red data.
-    A secret value is a value found under a protected key
-    :param red_data: A dictionary containing the red data
-    :return: A list of secret values found in the given red data
-    """
-    secret_values = []
-    _append_secret_values(red_data, secret_values)
-    return secret_values
-
-
-def _append_secret_values(data, secret_values, protected=False):
-    """
-    Appends secret values found in data to secret_values
-    :param data: The data to search in for secret values
-    :param secret_values: The list of secret values
-    :param protected: Indicates if the given value is protected or not
-    """
-    if isinstance(data, dict):
-        for key, value in data.items():
-            sub_protected = protected or is_protected_key(key)
-            _append_secret_values(value, secret_values, sub_protected)
-    elif isinstance(data, list):
-        for value in data:
-            _append_secret_values(value, secret_values, protected)
-    else:
-        if protected:
-            secret_values.append(data)
 
 
 def normalize_keys(data):

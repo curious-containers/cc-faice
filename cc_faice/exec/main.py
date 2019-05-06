@@ -4,10 +4,10 @@ import requests
 
 from cc_core.commons.files import load_and_read, wrapped_print, dump_print
 from cc_core.commons.red import red_validation
-from cc_core.commons.templates import inspect_templates_and_secrets, fill_template, fill_validation
 from cc_core.commons.engines import engine_validation
 
 from cc_faice.agent.red.main import run as run_faice_agent_red, OutputMode
+from cc_faice.commons.templates import complete_red_templates, get_secret_values, normalize_keys
 
 DESCRIPTION = 'Execute experiment according to execution engine defined in REDFILE.'
 
@@ -35,6 +35,10 @@ def attach_args(parser):
         help='This argument will be passed to ccfaice, if the given REDFILE refers to this execution engine. '
              'See "faice agent red --help" for more information.'
     )
+    parser.add_argument(
+        '--keyring-service', action='store', type=str, metavar='KEYRING_SERVICE', default='red',
+        help='Keyring service to resolve template values, default is "red".'
+    )
 
 
 def main():
@@ -44,7 +48,7 @@ def main():
     return run(**args.__dict__)
 
 
-def run(red_file, variables, non_interactive, format, insecure):
+def run(red_file, variables, non_interactive, format, insecure, keyring_service):
     red_data = load_and_read(red_file, 'REDFILE')
     red_validation(red_data, False)
     engine_validation(red_data, 'execution', ['ccfaice', 'ccagency'], 'faice exec')
@@ -67,15 +71,8 @@ def run(red_file, variables, non_interactive, format, insecure):
 
         return 1
 
-    # exec via CC-Agency
-    fill_data = None
-    if variables:
-        fill_data = load_and_read(variables, 'VARFILE')
-        fill_validation(fill_data)
-
-    template_keys_and_values, secret_values, _ = inspect_templates_and_secrets(red_data, fill_data, non_interactive)
-    red_data = fill_template(red_data, template_keys_and_values, False, False)
-    red_data_removed_underscores = fill_template(red_data, template_keys_and_values, False, True)
+    complete_red_templates(red_data, keyring_service, non_interactive)
+    normalize_keys(red_data)
 
     if 'access' not in red_data['execution']['settings']:
         wrapped_print([
@@ -89,7 +86,7 @@ def run(red_file, variables, non_interactive, format, insecure):
         ], error=True)
         return 1
 
-    access = red_data_removed_underscores['execution']['settings']['access']
+    access = red_data['execution']['settings']['access']
 
     r = requests.post(
         '{}/red'.format(access['url'].strip('/')),

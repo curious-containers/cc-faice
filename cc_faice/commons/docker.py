@@ -2,7 +2,6 @@ import os
 import docker
 from docker.errors import DockerException
 
-from cc_core.commons.cwl import location
 from cc_core.commons.files import read
 from cc_core.commons.exceptions import AgentError
 from cc_core.commons.engines import DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
@@ -51,32 +50,6 @@ def dump_job(job_data, mapped_input_dir):
         job[key] = val
 
     return job
-
-
-def input_volume_mappings(job_data, dumped_job_data, input_dir):
-    volumes = []
-
-    for key, val in job_data.items():
-        if isinstance(val, list) and len(val) > 0 and isinstance(val[0], dict):
-            for i, e in enumerate(val):
-                file_path = location(key, e)
-
-                if not os.path.isabs(file_path):
-                    file_path = os.path.join(os.path.expanduser(input_dir), file_path)
-
-                container_file_path = dumped_job_data[key][i]['path']
-                volumes.append([os.path.abspath(file_path), container_file_path])
-
-        if isinstance(val, dict):
-            file_path = location(key, val)
-
-            if not os.path.isabs(file_path):
-                file_path = os.path.join(os.path.expanduser(input_dir), file_path)
-
-            container_file_path = dumped_job_data[key]['path']
-            volumes.append([os.path.abspath(file_path), container_file_path])
-
-    return volumes
 
 
 def env_vars(preserve_environment):

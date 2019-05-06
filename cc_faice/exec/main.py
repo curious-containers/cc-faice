@@ -7,7 +7,7 @@ from cc_core.commons.red import red_validation
 from cc_core.commons.engines import engine_validation
 
 from cc_faice.agent.red.main import run as run_faice_agent_red, OutputMode
-from cc_faice.commons.templates import complete_red_templates, get_secret_values, normalize_keys
+from cc_faice.commons.templates import complete_red_templates, normalize_keys
 
 DESCRIPTION = 'Execute experiment according to execution engine defined in REDFILE.'
 
@@ -16,11 +16,6 @@ def attach_args(parser):
     parser.add_argument(
         'red_file', action='store', type=str, metavar='REDFILE',
         help='REDFILE (json or yaml) containing an experiment description as local PATH or http URL.'
-    )
-    parser.add_argument(
-        '-v', '--variables', action='store', type=str, metavar='VARFILE',
-        help='VARFILE (json or yaml) containing key-value pairs for variables in REDFILE as '
-             'local PATH or http URL.'
     )
     parser.add_argument(
         '--non-interactive', action='store_true',
@@ -48,7 +43,7 @@ def main():
     return run(**args.__dict__)
 
 
-def run(red_file, variables, non_interactive, format, insecure, keyring_service):
+def run(red_file, non_interactive, format, insecure, keyring_service):
     red_data = load_and_read(red_file, 'REDFILE')
     red_validation(red_data, False)
     engine_validation(red_data, 'execution', ['ccfaice', 'ccagency'], 'faice exec')

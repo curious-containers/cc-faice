@@ -215,18 +215,29 @@ def _get_blue_batch_mount_keys(blue_batch, output_mode):
 
     # check input keys
     for input_key, input_value in blue_batch['inputs'].items():
-        connector = input_value.get('connector')
-        if connector and connector.get('mount', False):
-            mount_connectors.append(input_key)
+        if not isinstance(input_value, list):
+            input_value = [input_value]
+
+        if not isinstance(input_value[0], dict):
+            continue
+
+        for input_value_element in input_value:
+            connector = input_value_element.get('connector')
+            if connector and connector.get('mount', False):
+                mount_connectors.append(input_key)
 
     # check output keys
     if output_mode == OutputMode.Connectors:
         outputs = blue_batch.get('outputs')
         if outputs:
             for output_key, output_value in outputs.items():
-                connector = output_value.get('connector')
-                if connector and connector.get('mount', False):
-                    mount_connectors.append(output_key)
+                if not isinstance(output_value, list):
+                    output_value = [output_value]
+
+                for output_value_element in output_value:
+                    connector = output_value_element.get('connector')
+                    if connector and connector.get('mount', False):
+                        mount_connectors.append(output_key)
 
     return mount_connectors
 

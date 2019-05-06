@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cc-faice"
-version = "6.1.1"
+version = "7.0.0"
 authors = ["Christoph Jansen <Christoph.Jansen@htw-berlin.de>", "Bruno Schilling <Bruno.Schilling@student.htw-berlin.de>"]
 license = "AGPL-3.0"
 readme = "README.md"
@@ -14,7 +14,6 @@ cc-core = "~6.1"
 flask = "^1.0"
 jsonschema = "^2.6"
 docker = "^3.4"
-keyring = "^19.0"
 
 # optional
 pycuda = { version = "^2018.1.1", optional = true }

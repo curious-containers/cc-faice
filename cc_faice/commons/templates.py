@@ -54,8 +54,9 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
 
     templates = {}
     keys_that_could_not_be_fulfilled = []
+    new_interactive_templates = []
 
-    first_interactive_key = True
+    interactive_keys_present = False
 
     for template_key in template_keys:
         # try keyring
@@ -67,17 +68,26 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
                 keys_that_could_not_be_fulfilled.append(template_key.key)
                 continue
 
-            if first_interactive_key:
-                print('Asking for template values:')
+            if not interactive_keys_present:
+                print('Asking for variables:')
                 sys.stdout.flush()
-                first_interactive_key = False
+                interactive_keys_present = True
 
             template_value = _ask_for_template_value(template_key)
             templates[template_key.key] = template_value
 
+            new_interactive_templates.append((template_key.key, template_value))
+
     if keys_that_could_not_be_fulfilled:
-        raise TemplateError('Could not resolve the following template keys: "{}".'
+        raise TemplateError('Could not resolve the following variables: "{}".'
                             .format(keys_that_could_not_be_fulfilled))
+
+    if interactive_keys_present:
+        answer = input('Add variables to keyring "{}" [y/N]: '.format(keyring_service))
+        if (answer.lower() == 'y') or (answer.lower() == 'yes'):
+            for new_key, new_value in new_interactive_templates:
+                keyring.set_password(keyring_service, new_key, new_value)
+            print('Added variables to keyring.')
 
     return templates
 

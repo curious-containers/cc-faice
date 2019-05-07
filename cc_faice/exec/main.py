@@ -1,13 +1,15 @@
 from argparse import ArgumentParser
+from copy import deepcopy
 
 import requests
 
 from cc_core.commons.files import load_and_read, wrapped_print, dump_print
 from cc_core.commons.red import red_validation
 from cc_core.commons.engines import engine_validation
+from cc_core.commons.templates import normalize_keys
 
 from cc_faice.agent.red.main import run as run_faice_agent_red, OutputMode
-from cc_faice.commons.templates import complete_red_templates, normalize_keys
+from cc_faice.commons.templates import complete_red_templates
 
 DESCRIPTION = 'Execute experiment according to execution engine defined in REDFILE.'
 
@@ -68,21 +70,23 @@ def run(red_file, non_interactive, format, insecure, keyring_service):
         return 1
 
     complete_red_templates(red_data, keyring_service, non_interactive)
-    normalize_keys(red_data)
 
-    if 'access' not in red_data['execution']['settings']:
+    red_data_normalized = deepcopy(red_data)
+    normalize_keys(red_data_normalized)
+
+    if 'access' not in red_data_normalized['execution']['settings']:
         wrapped_print([
             'ERROR: cannot send RED data to CC-Agency if access settings are not defined.'
         ], error=True)
         return 1
 
-    if 'auth' not in red_data['execution']['settings']['access']:
+    if 'auth' not in red_data_normalized['execution']['settings']['access']:
         wrapped_print([
             'ERROR: cannot send RED data to CC-Agency if auth is not defined in access settings.'
         ], error=True)
         return 1
 
-    access = red_data['execution']['settings']['access']
+    access = red_data_normalized['execution']['settings']['access']
 
     r = requests.post(
         '{}/red'.format(access['url'].strip('/')),

@@ -21,8 +21,9 @@ from cc_core.commons.files import load_and_read, dump_print
 from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
 from cc_core.commons.red import red_validation
 from cc_core.commons.red_to_blue import convert_red_to_blue
-from cc_core.commons.templates import get_secret_values
-from cc_faice.commons.templates import complete_red_templates, normalize_keys
+from cc_core.commons.templates import get_secret_values, normalize_keys
+
+from cc_faice.commons.templates import complete_red_templates
 from cc_faice.commons.docker import env_vars, DockerManager
 
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'

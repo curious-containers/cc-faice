@@ -7,8 +7,6 @@ from cc_core.commons.parsing import split_into_parts
 from cc_core.commons.templates import TEMPLATE_SEPARATOR_START, TEMPLATE_SEPARATOR_END, get_dict_sub_key_string, \
     get_list_sub_key_string, get_template_keys, is_template_key
 
-from pprint import pprint
-
 
 def complete_red_templates(red_data, keyring_service, fail_if_interactive):
     """
@@ -61,7 +59,7 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
     To fill in the template keys, first the keyring service is requested for each key,
     afterwards the user is asked interactively.
     :param template_keys: A set of template keys to query the keyring or ask the user
-    :type template_keys: set[TemplateKey]
+    :type template_keys: list[TemplateKey]
     :param keyring_service: The keyring service to query
     :param fail_if_interactive: Dont ask the user interactively for key values, but fail with an exception
     :return: A dictionary containing a mapping of template keys and values
@@ -131,25 +129,6 @@ def _resolve_template_string(template_string, templates, key_string):
             result.append(p)
 
     return ''.join(result)
-
-
-def normalize_keys(data):
-    """
-    Removes starting underscores from the keys in data
-    :param data: The data in which keys with underscores should be replaced without underscore
-    """
-    if isinstance(data, dict):
-        keys = list(data.keys())
-        for key in keys:
-            value = data[key]
-            if key.startswith('_'):
-                normalized_key = key[1:]
-                data[normalized_key] = value
-                del data[key]
-            normalize_keys(value)
-    elif isinstance(data, list):
-        for value in data:
-            normalize_keys(value)
 
 
 def _complete_templates(data, templates, key_string=None):

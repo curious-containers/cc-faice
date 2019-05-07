@@ -7,6 +7,8 @@ from cc_core.commons.parsing import split_into_parts
 from cc_core.commons.templates import TEMPLATE_SEPARATOR_START, TEMPLATE_SEPARATOR_END, get_dict_sub_key_string, \
     get_list_sub_key_string, get_template_keys, is_template_key
 
+from pprint import pprint
+
 
 def complete_red_templates(red_data, keyring_service, fail_if_interactive):
     """
@@ -20,9 +22,24 @@ def complete_red_templates(red_data, keyring_service, fail_if_interactive):
     """
     template_keys = set()
     get_template_keys(red_data, template_keys)
+    template_keys = unique_template_keys(template_keys)
 
     templates = _get_templates(template_keys, keyring_service, fail_if_interactive)
     _complete_templates(red_data, templates)
+
+
+def unique_template_keys(template_keys):
+    d = {}
+    for template_key in template_keys:
+        if template_key.protected:
+            d[template_key.key] = template_key
+        else:
+            if template_key.key not in d:
+                d[template_key.key] = template_key
+
+    template_key_list = [val for _, val in d.items()]
+    template_key_list.sort(key=lambda key: key.key, reverse=True)
+    return template_key_list
 
 
 def _ask_for_template_value(template_key):

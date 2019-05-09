@@ -227,6 +227,7 @@ def _get_blue_batch_mount_keys(blue_batch, output_mode):
             if connector and connector.get('mount', False):
                 mount_connectors.append(input_key)
 
+    # TODO: maybe remove this, because output connectors cannot mount
     # check output keys
     if output_mode == OutputMode.Connectors:
         outputs = blue_batch.get('outputs')

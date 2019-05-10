@@ -10,6 +10,7 @@ import os
 
 import tempfile
 import json
+import stat
 
 from argparse import ArgumentParser
 from enum import Enum
@@ -393,6 +394,8 @@ def _create_json_file(data):
     json.dump(data, f)
     f.seek(0)
     f.flush()
+    if os.getuid() != 1000:
+        os.chmod(f.name, stat.S_IROTH)
     return f
 
 

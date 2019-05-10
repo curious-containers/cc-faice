@@ -67,7 +67,6 @@ def run(red_file, non_interactive, fmt, insecure, keyring_service, **_):
     try:
         red_data = load_and_read(red_file, 'REDFILE')
         red_validation(red_data, False)
-        # TODO: nicer errors (e.g. if execution key is not available)
         engine_validation(red_data, 'execution', ['ccfaice', 'ccagency'], 'faice exec')
 
         secret_values = get_secret_values(red_data)

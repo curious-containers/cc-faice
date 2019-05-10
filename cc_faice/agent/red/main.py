@@ -204,11 +204,10 @@ def run(red_file,
     return result
 
 
-def _get_blue_batch_mount_keys(blue_batch, output_mode):
+def _get_blue_batch_mount_keys(blue_batch):
     """
     Returns a list of input/output keys, that use mounting connectors
     :param blue_batch: The blue batch to analyse
-    :param output_mode: The output mode for this batch.
     Output connectors are evaluated only, if output_mode == Connectors
     :return: A list of input/outputs keys as strings
     """
@@ -226,20 +225,6 @@ def _get_blue_batch_mount_keys(blue_batch, output_mode):
             connector = input_value_element.get('connector')
             if connector and connector.get('mount', False):
                 mount_connectors.append(input_key)
-
-    # TODO: maybe remove this, because output connectors cannot mount
-    # check output keys
-    if output_mode == OutputMode.Connectors:
-        outputs = blue_batch.get('outputs')
-        if outputs:
-            for output_key, output_value in outputs.items():
-                if not isinstance(output_value, list):
-                    output_value = [output_value]
-
-                for output_value_element in output_value:
-                    connector = output_value_element.get('connector')
-                    if connector and connector.get('mount', False):
-                        mount_connectors.append(output_key)
 
     return mount_connectors
 
@@ -352,7 +337,7 @@ def run_blue_batch(blue_batch,
 
     working_directory = CONTAINER_WORK_DIRECTORY
 
-    is_mounting = define_is_mounting(blue_batch, insecure, output_mode)
+    is_mounting = define_is_mounting(blue_batch, insecure)
 
     ccagent_data = docker_manager.run_container(
         name=container_name,
@@ -386,8 +371,8 @@ def run_blue_batch(blue_batch,
     return container_result
 
 
-def define_is_mounting(blue_batch, insecure, output_mode):
-    mount_connectors = _get_blue_batch_mount_keys(blue_batch, output_mode)
+def define_is_mounting(blue_batch, insecure):
+    mount_connectors = _get_blue_batch_mount_keys(blue_batch)
     if mount_connectors:
         if not insecure:
             raise Exception('The following keys are mounting directories {}.\nTo enable mounting inside '

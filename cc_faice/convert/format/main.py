@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 
+from cc_core.commons.exceptions import print_exception, AgentError
 from cc_core.commons.files import dump_print, load_and_read
 
 
@@ -21,10 +22,15 @@ def main():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()
-    run(**args.__dict__)
+    return run(**args.__dict__, fmt=args.format)
+
+
+def run(file, fmt, **_):
+    try:
+        data = load_and_read(file, 'FILE')
+    except AgentError as e:
+        print_exception(e)
+        return 1
+
+    dump_print(data, fmt)
     return 0
-
-
-def run(file, format):
-    data = load_and_read(file, 'FILE')
-    dump_print(data, format)

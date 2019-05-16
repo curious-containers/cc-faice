@@ -21,6 +21,10 @@ def attach_args(parser):
         help='FILE (json or yaml) to be validated as local path or http url.'
     )
     parser.add_argument(
+        '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
+        help='Specify FORMAT for debug information [json, yaml, yml]. Default is yaml.'
+    )
+    parser.add_argument(
         '-d', '--debug', action='store_true',
         help='Write debug info, including detailed exceptions, to stdout.'
     )

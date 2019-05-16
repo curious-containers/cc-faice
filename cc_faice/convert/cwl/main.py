@@ -25,10 +25,10 @@ def main():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()
-    return run(**args.__dict__)
+    return run(**args.__dict__, fmt=args.format)
 
 
-def run(red_file, format):
+def run(red_file, fmt, **_):
     red_data = load_and_read(red_file, 'REDFILE')
 
     if 'cli' not in red_data:
@@ -42,10 +42,12 @@ def run(red_file, format):
     try:
         validate(cli, cwl_schema)
     except ValidationError as e:
+        where = '/'.join([str(s) for s in e.absolute_path]) if e.absolute_path else '/'
         wrapped_print([
-            'ERROR: REDFILE does not comply with jsonschema.',
-            e.context
+            'Cli description does not comply with jsonschema:',
+            '\tkey in cwl section: {}'.format(where),
+            '\treason: {}'.format(e.message)
         ], error=True)
         return 1
 
-    dump_print(cli, format)
+    dump_print(cli, fmt)

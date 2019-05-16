@@ -33,7 +33,7 @@ def main():
 
     result = run(**args.__dict__, fmt=args.format)
 
-    if args.debug and result['state'] != 'succeeded':
+    if args.debug and (result['state'] != 'succeeded'):
         dump_print(result, args.format)
 
     if result['state'] != 'succeeded':

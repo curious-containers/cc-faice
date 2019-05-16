@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
+from cc_core.commons.exceptions import AgentError, print_exception
 from cc_core.commons.files import dump_print, load_and_read, wrapped_print
 from cc_core.commons.schemas.cwl import cwl_schema
 
@@ -29,7 +30,11 @@ def main():
 
 
 def run(red_file, fmt, **_):
-    red_data = load_and_read(red_file, 'REDFILE')
+    try:
+        red_data = load_and_read(red_file, 'REDFILE')
+    except AgentError as e:
+        print_exception(e)
+        return 1
 
     if 'cli' not in red_data:
         wrapped_print([

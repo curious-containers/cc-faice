@@ -23,13 +23,13 @@ def main():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()
-    return run(**args.__dict__)
+    return run(**args.__dict__, fmt=args.format)
 
 
-def run(schema, format):
+def run(schema, fmt, **_):
     if schema not in schemas:
         print('Schema "{}" not found. Use "faice schema list" for available schemas.'.format(schema), file=sys.stderr)
         return 1
 
-    dump_print(schemas[schema], format)
+    dump_print(schemas[schema], fmt)
     return 0

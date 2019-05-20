@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 
+from cc_core.commons.exceptions import print_exception, AgentError, exception_format
 from cc_core.commons.files import dump_print, load_and_read
 
 
@@ -15,16 +16,40 @@ def attach_args(parser):
         '--format', action='store', type=str, metavar='FORMAT', choices=['json', 'yaml', 'yml'], default='yaml',
         help='Specify FORMAT for generated data as one of [json, yaml, yml]. Default is yaml.'
     )
+    parser.add_argument(
+        '-d', '--debug', action='store_true',
+        help='Write debug info, including detailed exceptions, to stdout.'
+    )
 
 
 def main():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()
-    run(**args.__dict__)
-    return 0
+
+    result = run(**args.__dict__, fmt=args.format)
+
+    if result['state'] == 'succeeded':
+        return 0
+    else:
+        if args.debug:
+            dump_print(result, args.format)
+
+    return 1
 
 
-def run(file, format):
-    data = load_and_read(file, 'FILE')
-    dump_print(data, format)
+def run(file, fmt, **_):
+    result = {
+        'state': 'succeeded',
+        'debugInfo': None
+    }
+
+    try:
+        data = load_and_read(file, 'FILE')
+        dump_print(data, fmt)
+    except Exception as e:
+        print_exception(e)
+        result['debugInfo'] = exception_format()
+        result['state'] = 'failed'
+
+    return result

@@ -18,9 +18,9 @@ def main():
     parser = ArgumentParser(description=DESCRIPTION)
     attach_args(parser)
     args = parser.parse_args()
-    run(**args.__dict__)
+    run(fmt=args.format)
     return 0
 
 
-def run(format):
-    dump_print({'schemas': list(schemas.keys())}, format)
+def run(fmt):
+    dump_print({'schemas': list(schemas.keys())}, fmt)

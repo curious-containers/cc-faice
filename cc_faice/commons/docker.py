@@ -10,48 +10,6 @@ from cc_core.commons.gpu_info import set_nvidia_environment_variables
 DOCKER_SOCKET = 'unix://var/run/docker.sock'
 
 
-def docker_result_check(ccagent_data):
-    if ccagent_data[0]['state'] != 'succeeded':
-        raise AgentError('ccagent did not succeed\n\nError of Agent:\n{}'.format(ccagent_data[1]))
-
-
-def dump_job(job_data, mapped_input_dir):
-    job = {}
-
-    for key, arg in job_data.items():
-        val = arg
-        if isinstance(arg, list):
-            val = []
-            for index, i in enumerate(arg):
-                if isinstance(i, dict):
-                    if (i.get('class') == 'File') or (i.get('class') == 'Directory'):
-                        path = os.path.join(mapped_input_dir, '{}_{}'.format(key, index))
-                        elem = {
-                            'class': i['class'],
-                            'path': path
-                        }
-                        listing = i.get('listing')
-                        if listing:
-                            elem['listing'] = listing
-                        val.append(elem)
-                else:
-                    val.append(i)
-        elif isinstance(arg, dict):
-            if (arg.get('class') == 'File') or (arg.get('class') == 'Directory'):
-                path = os.path.join(mapped_input_dir, key)
-                val = {
-                    'class': arg['class'],
-                    'path': path
-                }
-                listing = arg.get('listing')
-                if listing:
-                    val['listing'] = listing
-
-        job[key] = val
-
-    return job
-
-
 def env_vars(preserve_environment):
     if preserve_environment is None:
         return {}

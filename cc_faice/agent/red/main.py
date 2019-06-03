@@ -175,24 +175,26 @@ def run(red_file,
             docker_manager.pull(docker_image, auth=registry_auth)
 
         if len(blue_batches) == 1:
-            host_outputs_dir = 'outputs'
+            host_outdir = 'outputs'
         else:
-            host_outputs_dir = 'outputs_{batch_index}'
+            host_outdir = 'outputs_{batch_index}'
 
         for batch_index, blue_batch in enumerate(blue_batches):
-            container_execution_result = run_blue_batch(blue_batch=blue_batch,
-                                                        docker_manager=docker_manager,
-                                                        docker_image=docker_image,
-                                                        blue_agent_host_path=blue_agent_host_path,
-                                                        host_outputs_dir=host_outputs_dir,
-                                                        output_mode=output_mode,
-                                                        leave_container=leave_container,
-                                                        batch_index=batch_index,
-                                                        ram=ram,
-                                                        gpus=gpus,
-                                                        environment=environment,
-                                                        runtime=runtime,
-                                                        insecure=insecure)
+            container_execution_result = run_blue_batch(
+                blue_batch=blue_batch,
+                docker_manager=docker_manager,
+                docker_image=docker_image,
+                blue_agent_host_path=blue_agent_host_path,
+                host_outdir=host_outdir,
+                output_mode=output_mode,
+                leave_container=leave_container,
+                batch_index=batch_index,
+                ram=ram,
+                gpus=gpus,
+                environment=environment,
+                runtime=runtime,
+                insecure=insecure
+            )
 
             # handle execution result
             result['containers'].append(container_execution_result.to_dict())
@@ -286,7 +288,7 @@ def run_blue_batch(blue_batch,
                    docker_manager,
                    docker_image,
                    blue_agent_host_path,
-                   host_outputs_dir,
+                   host_outdir,
                    output_mode,
                    leave_container,
                    batch_index,
@@ -301,7 +303,8 @@ def run_blue_batch(blue_batch,
     :param docker_manager: The docker manager to use for executing the batch
     :param docker_image: The docker image url to use. This docker image should be already present on the host machine
     :param blue_agent_host_path: The path to the blue agent to execute
-    :param host_outputs_dir: The outputs directory of the host.
+    :param host_outdir: The outputs directory of the host. This is mounted as outdir inside the docker container
+    mounted into the docker container, where host_outputs_dir is the host directory.
     :param output_mode: If output mode == Connectors the blue agent will be started with '--outputs' flag
     Otherwise this function will mount the CONTAINER_OUTPUT_DIRECTORY
     :param leave_container: If True, the started container will not be stopped after execution.
@@ -325,9 +328,12 @@ def run_blue_batch(blue_batch,
                    [blue_agent_host_path, BLUE_AGENT_CONTAINER_PATH]]
 
     rw_mappings = []
+    working_directory = None
     if output_mode == OutputMode.Directory:
-        abs_host_outputs_dir = os.path.abspath(host_outputs_dir.format(batch_index=batch_index))
-        rw_mappings.append([abs_host_outputs_dir, CONTAINER_OUTPUT_DIRECTORY])
+        container_outdir = blue_batch['outdir']
+        working_directory = container_outdir
+        abs_host_outputs_dir = os.path.abspath(host_outdir.format(batch_index=batch_index))
+        rw_mappings.append([abs_host_outputs_dir, container_outdir])
 
         # create host output directory
         os.makedirs(abs_host_outputs_dir, exist_ok=True)
@@ -335,8 +341,6 @@ def run_blue_batch(blue_batch,
         command.append('--outputs')
 
     volumes = {'readOnly': ro_mappings, 'readWrite': rw_mappings}
-
-    working_directory = CONTAINER_WORK_DIRECTORY
 
     is_mounting = define_is_mounting(blue_batch, insecure)
 

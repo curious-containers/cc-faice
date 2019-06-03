@@ -80,12 +80,10 @@ def run(red_file, non_interactive, fmt, insecure, keyring_service, **_):
                                          disable_pull=False,
                                          leave_container=False,
                                          preserve_environment=[],
-                                         non_interactive=False,
+                                         non_interactive=non_interactive,
                                          insecure=insecure,
                                          output_mode=OutputMode.Connectors,
-                                         keyring_service='red')
-            dump_print(result, 'yaml')
-
+                                         keyring_service=keyring_service)
             return result
 
         complete_red_templates(red_data, keyring_service, non_interactive)

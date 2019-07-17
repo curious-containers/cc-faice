@@ -319,10 +319,11 @@ def run_blue_batch(blue_batch,
     command = _create_blue_agent_command()
 
     blue_file = _create_json_file(blue_batch)
+    blue_agent_file = _create_blue_agent_tmp_file(blue_agent_host_path)
 
     # binds
     ro_mappings = [[blue_file.name, BLUE_FILE_CONTAINER_PATH],
-                   [blue_agent_host_path, BLUE_AGENT_CONTAINER_PATH]]
+                   [blue_agent_file.name, BLUE_AGENT_CONTAINER_PATH]]
 
     rw_mappings = []
     if output_mode == OutputMode.Directory:
@@ -368,6 +369,7 @@ def run_blue_batch(blue_batch,
                                                 ccagent_data[1])
 
     blue_file.close()
+    blue_agent_file.close()
 
     return container_result
 
@@ -392,6 +394,19 @@ def _create_json_file(data):
     """
     f = tempfile.NamedTemporaryFile(mode='w')
     json.dump(data, f)
+    f.seek(0)
+    f.flush()
+    if os.getuid() != 1000:
+        os.chmod(f.name, stat.S_IROTH)
+    return f
+
+
+def _create_blue_agent_tmp_file(blue_agent_host_path):
+    f = tempfile.NamedTemporaryFile(mode='w')
+
+    with open(blue_agent_host_path) as g:
+        f.write(g.read())
+
     f.seek(0)
     f.flush()
     if os.getuid() != 1000:

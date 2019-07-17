@@ -8,6 +8,9 @@ from cc_core.commons.engines import DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIM
 from cc_core.commons.gpu_info import set_nvidia_environment_variables
 
 
+NOFILE_LIMIT = 4096
+
+
 def env_vars(preserve_environment):
     if preserve_environment is None:
         return {}
@@ -28,8 +31,7 @@ class DockerManager:
                 version='auto'
             )
         except DockerException:
-            raise DockerException('Could not connect to docker daemon at "{}". Is the docker daemon running?'
-                                  .format(DOCKER_SOCKET))
+            raise DockerException('Could not connect to docker daemon. Is the docker daemon running?')
 
     def pull(self, image, auth=None):
         self._client.images.pull(image, auth_config=auth)
@@ -65,7 +67,7 @@ class DockerManager:
         for host_vol, container_vol in rw_mappings:
             binds[host_vol] = {
                 'bind': container_vol,
-                'mode': 'rw'
+                'mode': 'z'
             }
 
         mem_limit = None
@@ -94,7 +96,8 @@ class DockerManager:
             runtime=runtime,
             environment=environment,
             devices=devices,
-            cap_add=capabilities
+            cap_add=capabilities,
+            ulimits=[docker.types.Ulimit(name='nofile', soft=NOFILE_LIMIT, hard=NOFILE_LIMIT)]
         )
 
         c.start()

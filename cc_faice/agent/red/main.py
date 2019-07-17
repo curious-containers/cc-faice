@@ -9,6 +9,7 @@ working dir     -               -
 import os
 
 import tempfile
+import shutil
 import json
 import stat
 
@@ -332,6 +333,11 @@ def run_blue_batch(blue_batch,
 
         # create host output directory
         os.makedirs(abs_host_outputs_dir, exist_ok=True)
+        os.chmod(
+            abs_host_outputs_dir,
+            stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRWXG | stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
+            stat.S_IRWXO | stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH
+        )
     elif output_mode == OutputMode.Connectors:
         command.append('--outputs')
 
@@ -397,7 +403,7 @@ def _create_json_file(data):
     f.seek(0)
     f.flush()
     if os.getuid() != 1000:
-        os.chmod(f.name, stat.S_IROTH)
+        os.chmod(f.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
     return f
 
 
@@ -410,7 +416,7 @@ def _create_blue_agent_tmp_file(blue_agent_host_path):
     f.seek(0)
     f.flush()
     if os.getuid() != 1000:
-        os.chmod(f.name, stat.S_IROTH)
+        os.chmod(f.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
     return f
 
 

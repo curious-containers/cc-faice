@@ -9,7 +9,6 @@ working dir     -               -
 import os
 
 import tempfile
-import shutil
 import json
 import stat
 

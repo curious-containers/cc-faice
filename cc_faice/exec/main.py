@@ -58,6 +58,28 @@ def main():
     return 0
 
 
+def _has_outputs(red_data):
+    """
+    Returns whether the given red data contains outputs.
+
+    :param red_data: The red data to check
+    :type red_data: Dict[str, Any]
+    :return: True, if the given red_data contains outputs, otherwise False
+    :rtype: bool
+    """
+    batches = red_data.get('batches')
+    if batches is not None:
+        for batch in batches:
+            outputs = batch.get('outputs')
+            if outputs:
+                return True
+    else:
+        outputs = red_data.get('outputs')
+        if outputs:
+            return True
+    return False
+
+
 def run(red_file, non_interactive, fmt, insecure, keyring_service, **_):
     secret_values = None
     result = {
@@ -76,14 +98,22 @@ def run(red_file, non_interactive, fmt, insecure, keyring_service, **_):
         if 'execution' not in red_data:
             raise KeyError('The key "execution" is needed in red file for usage with faice exec.')
         if red_data['execution']['engine'] == 'ccfaice':
-            result = run_faice_agent_red(red_file=red_file,
-                                         disable_pull=False,
-                                         leave_container=False,
-                                         preserve_environment=[],
-                                         non_interactive=non_interactive,
-                                         insecure=insecure,
-                                         output_mode=OutputMode.Connectors,
-                                         keyring_service=keyring_service)
+            # use connectors, if red file specifies outputs
+            if _has_outputs(red_data):
+                faice_output_mode = OutputMode.Connectors
+            else:
+                faice_output_mode = OutputMode.Directory
+
+            result = run_faice_agent_red(
+                red_file=red_file,
+                disable_pull=False,
+                leave_container=False,
+                preserve_environment=[],
+                non_interactive=non_interactive,
+                insecure=insecure,
+                output_mode=faice_output_mode,
+                keyring_service=keyring_service
+            )
             return result
 
         complete_red_templates(red_data, keyring_service, non_interactive)

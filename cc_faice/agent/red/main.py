@@ -6,7 +6,9 @@ outputs         ./outputs       /outputs/
 inputs          -               /tmp/red/inputs/
 working dir     -               -
 """
+import io
 import os
+import tarfile
 
 import tempfile
 import json
@@ -30,8 +32,9 @@ from cc_faice.commons.docker import env_vars, DockerManager
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
 
 PYTHON_INTERPRETER = 'python3'
-BLUE_FILE_CONTAINER_PATH = '/tmp/red_exec/blue_file.json'
-BLUE_AGENT_CONTAINER_PATH = '/tmp/red_exec/blue_agent.py'
+BLUE_FILE_CONTAINER_NAME = 'blue_file.json'
+BLUE_AGENT_CONTAINER_NAME = 'blue_agent.py'
+BLUE_AGENT_CONTAINER_DIR = '/cc'
 CONTAINER_OUTPUT_DIRECTORY = '/outputs'
 CONTAINER_WORK_DIRECTORY = None
 
@@ -160,8 +163,6 @@ def run(red_file,
         runtime = engine_to_runtime(red_data['container']['engine'])
         environment = env_vars(preserve_environment)
 
-        blue_agent_host_path = get_blue_agent_host_path()
-
         # gpus
         gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
         gpu_devices = get_devices(red_data['container']['engine'])
@@ -184,7 +185,6 @@ def run(red_file,
                 blue_batch=blue_batch,
                 docker_manager=docker_manager,
                 docker_image=docker_image,
-                blue_agent_host_path=blue_agent_host_path,
                 host_outdir=host_outdir,
                 output_mode=output_mode,
                 leave_container=leave_container,
@@ -241,20 +241,19 @@ class ExecutionResultType(Enum):
 
 
 class ContainerExecutionResult:
-    def __init__(self, state, command, container_name, volumes, agent_execution_result, agent_std_err):
+    def __init__(self, state, command, container_name, agent_execution_result, agent_std_err):
         """
         Creates a new Container Execution Result
+
         :param state: The state of the agent execution ('failed', 'successful')
         :param command: The command, that executes the blue agent inside the docker container
         :param container_name: The name of the docker container
-        :param volumes: The volumes and binds mounted into the docker container
         :param agent_execution_result: The parsed json output of the blue agent
         :param agent_std_err: The std err as list of string of the blue agent
         """
         self.state = state
         self.command = command
         self.container_name = container_name
-        self.volumes = volumes
         self.agent_execution_result = agent_execution_result
         self.agent_std_err = agent_std_err
 
@@ -270,7 +269,6 @@ class ContainerExecutionResult:
             'state': str(self.state),
             'command': self.command,
             'containerName': self.container_name,
-            'volumes': self.volumes,
             'agentStdOut': self.agent_execution_result,
             'agentStdErr': self.agent_std_err
         }
@@ -287,7 +285,6 @@ class ContainerExecutionResult:
 def run_blue_batch(blue_batch,
                    docker_manager,
                    docker_image,
-                   blue_agent_host_path,
                    host_outdir,
                    output_mode,
                    leave_container,
@@ -299,14 +296,14 @@ def run_blue_batch(blue_batch,
                    insecure):
     """
     Executes an blue agent inside a docker container that takes the given blue batch as argument.
+
     :param blue_batch: The blue batch to execute
     :param docker_manager: The docker manager to use for executing the batch
     :param docker_image: The docker image url to use. This docker image should be already present on the host machine
-    :param blue_agent_host_path: The path to the blue agent to execute
     :param host_outdir: The outputs directory of the host. This is mounted as outdir inside the docker container
-    mounted into the docker container, where host_outputs_dir is the host directory.
+                        mounted into the docker container, where host_outputs_dir is the host directory.
     :param output_mode: If output mode == Connectors the blue agent will be started with '--outputs' flag
-    Otherwise this function will mount the CONTAINER_OUTPUT_DIRECTORY
+                        Otherwise this function will mount the CONTAINER_OUTPUT_DIRECTORY
     :param leave_container: If True, the started container will not be stopped after execution.
     :param batch_index: The index of the current batch
     :param ram: The RAM limit for the docker container, given in MB
@@ -314,66 +311,99 @@ def run_blue_batch(blue_batch,
     :param environment: The environment to use for the docker container
     :param runtime: The docker runtime to use
     :param insecure: Allow insecure capabilities
-    :return: A container result as dictionary
+    :return: A container result
+    :rtype: ContainerExecutionResult
     """
 
     container_name = str(uuid4())
 
     command = _create_blue_agent_command()
 
-    blue_file = _create_json_file(blue_batch)
-
-    # binds
-    ro_mappings = [[blue_file.name, BLUE_FILE_CONTAINER_PATH],
-                   [blue_agent_host_path, BLUE_AGENT_CONTAINER_PATH]]
-
-    rw_mappings = []
-    working_directory = None
+    container_outdir = None
     if output_mode == OutputMode.Directory:
         container_outdir = blue_batch['outdir']
-        working_directory = container_outdir
-        abs_host_outputs_dir = os.path.abspath(host_outdir.format(batch_index=batch_index))
-        rw_mappings.append([abs_host_outputs_dir, container_outdir])
-
-        # create host output directory
-        os.makedirs(abs_host_outputs_dir, exist_ok=True)
     elif output_mode == OutputMode.Connectors:
         command.append('--outputs')
 
-    volumes = {'readOnly': ro_mappings, 'readWrite': rw_mappings}
-
     is_mounting = define_is_mounting(blue_batch, insecure)
 
-    ccagent_data = docker_manager.run_container(
-        name=container_name,
-        image=docker_image,
-        command=command,
-        ro_mappings=ro_mappings,
-        rw_mappings=rw_mappings,
-        work_dir=working_directory,
-        leave_container=leave_container,
-        ram=ram,
-        runtime=runtime,
-        gpus=gpus,
-        environment=environment,
-        enable_fuse=is_mounting
-    )
+    with _create_batch_archive(blue_batch, BLUE_AGENT_CONTAINER_DIR) as blue_archive:
+        ccagent_data = docker_manager.run_container(
+            name=container_name,
+            image=docker_image,
+            command=command,
+            work_dir=None,
+            leave_container=leave_container,
+            ram=ram,
+            runtime=runtime,
+            gpus=gpus,
+            environment=environment,
+            enable_fuse=is_mounting,
+            archive=blue_archive,
+            output_directory=container_outdir
+        )
 
     if ccagent_data[0]['state'] == 'succeeded':
         state = ExecutionResultType.Succeeded
+
+        # create outputs directory
+        if output_mode == OutputMode.Directory:
+            # create host output directory
+            abs_host_outdir = os.path.abspath(host_outdir.format(batch_index=batch_index))
+            os.makedirs(abs_host_outdir, exist_ok=True)
+
+            output_tar_file = ccagent_data[2]
+            output_tar_file.extractall()
+            output_tar_file.close()
     else:
         state = ExecutionResultType.Failed
 
-    container_result = ContainerExecutionResult(state,
-                                                command,
-                                                container_name,
-                                                volumes,
-                                                ccagent_data[0],
-                                                ccagent_data[1])
-
-    blue_file.close()
+    container_result = ContainerExecutionResult(
+        state,
+        command,
+        container_name,
+        ccagent_data[0],
+        ccagent_data[1]
+    )
 
     return container_result
+
+
+def _create_batch_archive(blue_data, directory):
+    """
+    Creates a tar archive. This archive contains the blue agent and a blue file. The blue file is filled with the
+    given blue data. The blue agent and the blue file are stored inside the given directory. The tar archive and all
+    files contained in this archive are in memory and are never stored in the local filesystem.
+
+    :param blue_data: The data to put into the blue file of the returned archive
+    :type blue_data: dict
+    :param directory: Inside the archive the blue agent and the blue batch is located under the given directory
+    :type directory: str
+    :return: A tar archive containing the blue agent and the given blue batch
+    :rtype: io.BytesIO or bytes
+    """
+    data_file = io.BytesIO()
+    tar_file = tarfile.open(mode='w', fileobj=data_file)
+
+    # add blue agent
+    agent_archive_name = os.path.join(directory, BLUE_AGENT_CONTAINER_NAME)
+    tar_file.add(get_blue_agent_host_path(), arcname=agent_archive_name, recursive=False)
+
+    # add blue file
+    blue_batch_name = os.path.join(directory, BLUE_FILE_CONTAINER_NAME)
+    blue_batch_content = json.dumps(blue_data).encode('utf-8')
+
+    # see https://bugs.python.org/issue22208 for more information
+    blue_batch_tarinfo = tarfile.TarInfo(blue_batch_name)
+    blue_batch_tarinfo.size = len(blue_batch_content)
+
+    tar_file.addfile(blue_batch_tarinfo, io.BytesIO(blue_batch_content))
+
+    # close file
+    tar_file.close()
+    data_file.seek(0)
+
+    return data_file
 
 
 def define_is_mounting(blue_batch, insecure):
@@ -406,9 +436,14 @@ def _create_json_file(data):
 def _create_blue_agent_command():
     """
     Defines the command to execute inside the docker container to execute the blue agent.
+    The resulting command looks similar to "python3 /cc/blue_agent.py /cc/blue_file.json --debug"
+
     :return: A list of strings to execute inside the docker container.
+    :rtype: List[str]
     """
-    return [PYTHON_INTERPRETER, BLUE_AGENT_CONTAINER_PATH, BLUE_FILE_CONTAINER_PATH, '--debug']
+    blue_agent_container_path = os.path.join(BLUE_AGENT_CONTAINER_DIR, BLUE_AGENT_CONTAINER_NAME)
+    blue_file_container_path = os.path.join(BLUE_AGENT_CONTAINER_DIR, BLUE_FILE_CONTAINER_NAME)
+    return [PYTHON_INTERPRETER, blue_agent_container_path, blue_file_container_path, '--debug']
 
 
 def get_blue_agent_host_path():

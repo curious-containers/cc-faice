@@ -462,22 +462,6 @@ def define_is_mounting(blue_batch, insecure):
     return False
 
 
-def _create_json_file(data):
-    """
-    Creates a temporary file that contains the given data in json format.
-
-    :param data: The data to write to the temporary file
-    :return: A NamedTemporaryFile
-    """
-    f = tempfile.NamedTemporaryFile(mode='w')
-    json.dump(data, f)
-    f.seek(0)
-    f.flush()
-    if os.getuid() != 1000:
-        os.chmod(f.name, stat.S_IROTH)
-    return f
-
-
 def _create_blue_agent_command():
     """
     Defines the command to execute inside the docker container to execute the blue agent.

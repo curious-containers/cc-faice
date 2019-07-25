@@ -12,8 +12,6 @@ from cc_core.commons.exceptions import AgentError
 from cc_core.commons.engines import DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
 from cc_core.commons.gpu_info import set_nvidia_environment_variables, GPUDevice
 
-DOCKER_SOCKET = 'unix://var/run/docker.sock'
-
 
 def env_vars(preserve_environment):
     if preserve_environment is None:
@@ -31,13 +29,9 @@ def env_vars(preserve_environment):
 class DockerManager:
     def __init__(self):
         try:
-            self._client = docker.DockerClient(
-                base_url=DOCKER_SOCKET,
-                version='auto'
-            )
+            self._client = docker.from_env()
         except DockerException:
-            raise DockerException('Could not connect to docker daemon at "{}". Is the docker daemon running?'
-                                  .format(DOCKER_SOCKET))
+            raise DockerException('Could not connect to docker daemon. Is the docker daemon running?')
 
         self._container = None  # type: Container or None
 

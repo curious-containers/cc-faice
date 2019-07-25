@@ -1,10 +1,8 @@
 """
-                Host            Container
-blue_file       <tempfile>      /tmp/red_exec/blue_file.yml
-blue_agent      <import...>     /tmp/red_exec/blue_agent.py
-outputs         ./outputs       /outputs/
-inputs          -               /tmp/red/inputs/
-working dir     -               -
+                Host                    Container
+blue_file       in memory               /cc/blue_file.json
+blue_agent      <import...>             /cc/blue_agent.py
+outputs         ./outputs[_batch_id]    /cc/outputs (defined in red_to_blue.py)
 """
 import io
 import os
@@ -35,8 +33,7 @@ PYTHON_INTERPRETER = 'python3'
 BLUE_FILE_CONTAINER_NAME = 'blue_file.json'
 BLUE_AGENT_CONTAINER_NAME = 'blue_agent.py'
 BLUE_AGENT_CONTAINER_DIR = '/cc'
-CONTAINER_OUTPUT_DIRECTORY = '/outputs'
-CONTAINER_WORK_DIRECTORY = None
+OUTPUTS_DIRECTORY_NAME = 'outputs'
 
 
 def attach_args(parser):
@@ -122,7 +119,8 @@ def run(red_file,
         **_
         ):
     """
-    Executes a RED Experiment
+    Executes a RED Experiment.
+
     :param red_file: The path or URL to the RED File to execute
     :param disable_pull: If True the docker image is not pulled from an registry
     :param leave_container:
@@ -210,8 +208,8 @@ def run(red_file,
 def _get_blue_batch_mount_keys(blue_batch):
     """
     Returns a list of input/output keys, that use mounting connectors
+
     :param blue_batch: The blue batch to analyse
-    Output connectors are evaluated only, if output_mode == Connectors
     :return: A list of input/outputs keys as strings
     """
     mount_connectors = []
@@ -243,7 +241,7 @@ class ExecutionResultType(Enum):
 class ContainerExecutionResult:
     def __init__(self, state, command, container_name, agent_execution_result, agent_std_err):
         """
-        Creates a new Container Execution Result
+        Creates a new Container Execution Result.
 
         :param state: The state of the agent execution ('failed', 'successful')
         :param command: The command, that executes the blue agent inside the docker container
@@ -263,6 +261,7 @@ class ContainerExecutionResult:
     def to_dict(self):
         """
         Transforms self into a dictionary representation.
+
         :return: self as dictionary
         """
         return {
@@ -276,6 +275,7 @@ class ContainerExecutionResult:
     def raise_for_state(self):
         """
         Raises an AgentError, if state is not successful.
+
         :raise AgentError: If state is not successful
         """
         if not self.successful():
@@ -299,11 +299,12 @@ def run_blue_batch(blue_batch,
 
     :param blue_batch: The blue batch to execute
     :param docker_manager: The docker manager to use for executing the batch
+    :type docker_manager: DockerManager
     :param docker_image: The docker image url to use. This docker image should be already present on the host machine
     :param host_outdir: The outputs directory of the host. This is mounted as outdir inside the docker container
                         mounted into the docker container, where host_outputs_dir is the host directory.
     :param output_mode: If output mode == Connectors the blue agent will be started with '--outputs' flag
-                        Otherwise this function will mount the CONTAINER_OUTPUT_DIRECTORY
+                        Otherwise this function will retrieve the output files with container.get_archive()
     :param leave_container: If True, the started container will not be stopped after execution.
     :param batch_index: The index of the current batch
     :param ram: The RAM limit for the docker container, given in MB
@@ -319,61 +320,94 @@ def run_blue_batch(blue_batch,
 
     command = _create_blue_agent_command()
 
-    container_outdir = None
-    if output_mode == OutputMode.Directory:
-        container_outdir = blue_batch['outdir']
-    elif output_mode == OutputMode.Connectors:
+    if output_mode == OutputMode.Connectors:
         command.append('--outputs')
 
     is_mounting = define_is_mounting(blue_batch, insecure)
 
-    with _create_batch_archive(blue_batch, BLUE_AGENT_CONTAINER_DIR) as blue_archive:
-        ccagent_data = docker_manager.run_container(
-            name=container_name,
-            image=docker_image,
-            command=command,
-            work_dir=None,
-            leave_container=leave_container,
-            ram=ram,
-            runtime=runtime,
-            gpus=gpus,
-            environment=environment,
-            enable_fuse=is_mounting,
-            archive=blue_archive,
-            output_directory=container_outdir
-        )
+    docker_manager.create_container(
+        name=container_name,
+        image=docker_image,
+        command=command,
+        ram=ram,
+        runtime=runtime,
+        gpus=gpus,
+        environment=environment,
+        enable_fuse=is_mounting,
+    )
 
-    if ccagent_data[0]['state'] == 'succeeded':
+    with _create_batch_archive(blue_batch, BLUE_AGENT_CONTAINER_DIR) as blue_archive:
+        docker_manager.put_archive(blue_archive)
+
+    blue_agent_result, blue_agent_stderr = docker_manager.run_container()
+
+    if blue_agent_result['state'] == 'succeeded':
         state = ExecutionResultType.Succeeded
 
         # create outputs directory
         if output_mode == OutputMode.Directory:
-            # create host output directory
             abs_host_outdir = os.path.abspath(host_outdir.format(batch_index=batch_index))
-            os.makedirs(abs_host_outdir, exist_ok=True)
+            _handle_directory_outputs(abs_host_outdir, blue_agent_result['outputs'], docker_manager)
 
-            output_tar_file = ccagent_data[2]
-            output_tar_file.extractall()
-            output_tar_file.close()
     else:
         state = ExecutionResultType.Failed
 
-    container_result = ContainerExecutionResult(
+    if not leave_container:
+        docker_manager.remove_container()
+
+    return ContainerExecutionResult(
         state,
         command,
         container_name,
-        ccagent_data[0],
-        ccagent_data[1]
+        blue_agent_result,
+        blue_agent_stderr
     )
 
-    return container_result
+
+def _handle_directory_outputs(host_outdir, outputs, docker_manager):
+    """
+    Creates the host_outdir and retrieves the files given in outputs from the docker manager. The retrieved files are
+    then stored in the created host_outdir.
+
+    :param host_outdir: The absolute path to the output directory of the host.
+    :type host_outdir: str
+    :param outputs: A dictionary mapping output_keys to file information.
+    :type outputs: Dict[str, Dict]
+    :param docker_manager: The docker manager from which to retrieve the files
+    :type docker_manager: DockerManager
+
+    :raise AgentError: If a file given in outputs could not be retrieved by the docker manager
+    """
+
+    os.makedirs(host_outdir, exist_ok=True)
+
+    for output_key, output_file_information in outputs.items():
+        file_path = output_file_information['path']
+
+        if not file_path:
+            continue
+
+        try:
+            file_archive = docker_manager.get_file_archive(file_path)
+        except AgentError as e:
+            raise AgentError(
+                'Could not retrieve output file "{}" with path "{}" from docker container. '
+                'Failed with the following message:\n{}'
+                .format(output_key, file_path, str(e))
+            )
+
+        file_archive.extractall(host_outdir)
+        file_archive.close()
 
 
 def _create_batch_archive(blue_data, directory):
     """
-    Creates a tar archive. This archive contains the blue agent and a blue file. The blue file is filled with the
-    given blue data. The blue agent and the blue file are stored inside the given directory. The tar archive and all
-    files contained in this archive are in memory and are never stored in the local filesystem.
+    Creates a tar archive. This archive contains the blue agent, a blue file and the outputs-directory.
+    The blue file is filled with the given blue data.
+    The blue agent is imported via cc-core and the blue_agent.py file is added to the archive.
+    The outputs-directory is an empty directory, with name 'outputs'
+
+    The tar archive and the blue file are always in memory and never stored on the local filesystem.
 
     :param blue_data: The data to put into the blue file of the returned archive
     :type blue_data: dict
@@ -392,12 +426,21 @@ def _create_batch_archive(blue_data, directory):
     # add blue file
     blue_batch_name = os.path.join(directory, BLUE_FILE_CONTAINER_NAME)
     blue_batch_content = json.dumps(blue_data).encode('utf-8')
-
     # see https://bugs.python.org/issue22208 for more information
     blue_batch_tarinfo = tarfile.TarInfo(blue_batch_name)
     blue_batch_tarinfo.size = len(blue_batch_content)
-
     tar_file.addfile(blue_batch_tarinfo, io.BytesIO(blue_batch_content))
+
+    # add outputs directory
+    output_directory_name = os.path.join(directory, OUTPUTS_DIRECTORY_NAME)
+    output_directory_tarinfo = tarfile.TarInfo(output_directory_name)
+    output_directory_tarinfo.type = tarfile.DIRTYPE
+    output_directory_tarinfo.uid = 1000
+    output_directory_tarinfo.gid = 1000
+    output_directory_tarinfo.uname = 'cc'
+    output_directory_tarinfo.gname = 'cc'
+    output_directory_tarinfo.mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
+    tar_file.addfile(output_directory_tarinfo)
 
     # close file
     tar_file.close()
@@ -410,10 +453,11 @@ def define_is_mounting(blue_batch, insecure):
     mount_connectors = _get_blue_batch_mount_keys(blue_batch)
     if mount_connectors:
         if not insecure:
-            raise Exception('The following keys are mounting directories {}.\nTo enable mounting inside '
-                            'a docker container run faice with --insecure (see --help).\n'
-                            'Be aware that this will enable SYS_ADMIN capabilities in order to enable FUSE mounts.'
-                            .format(mount_connectors))
+            raise Exception(
+                'The following keys are mounting directories {}.\nTo enable mounting inside a docker container run '
+                'faice with --insecure (see --help).\nBe aware that this will enable SYS_ADMIN capabilities in order to'
+                ' enable FUSE mounts.'.format(mount_connectors)
+            )
         return True
     return False
 
@@ -421,6 +465,7 @@ def define_is_mounting(blue_batch, insecure):
 def _create_json_file(data):
     """
     Creates a temporary file that contains the given data in json format.
+
     :param data: The data to write to the temporary file
     :return: A NamedTemporaryFile
     """
@@ -448,7 +493,8 @@ def _create_blue_agent_command():
 
 def get_blue_agent_host_path():
     """
-    Returns the path of the blue agent in the host machine to mount into the docker container.
+    Returns the path of the blue agent in the host machine.
+
     :return: The path to the blue agent
     """
     import cc_core.agent.blue.__main__ as blue_main

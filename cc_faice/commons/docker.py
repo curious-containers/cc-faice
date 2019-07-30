@@ -73,7 +73,7 @@ class DockerManager:
             return []
 
         gpus = []
-        for gpu_line in stdout.encode('utf-8').splitlines():
+        for gpu_line in stdout.decode('utf-8').splitlines():
             try:
                 index_text, memory_text = gpu_line.split(sep=',')  # type: str
 

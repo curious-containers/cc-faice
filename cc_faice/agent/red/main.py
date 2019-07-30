@@ -8,7 +8,6 @@ import io
 import os
 import tarfile
 
-import tempfile
 import json
 import stat
 

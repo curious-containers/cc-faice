@@ -21,7 +21,7 @@ from cc_core.commons.exceptions import print_exception, exception_format, AgentE
 from cc_core.commons.files import load_and_read, dump_print
 from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
 from cc_core.commons.red import red_validation
-from cc_core.commons.red_to_blue import convert_red_to_blue
+from cc_core.commons.red_to_blue import convert_red_to_blue, CONTAINER_OUTDIR
 from cc_core.commons.templates import get_secret_values, normalize_keys
 
 from cc_faice.commons.templates import complete_red_templates
@@ -329,6 +329,7 @@ def run_blue_batch(blue_batch,
         name=container_name,
         image=docker_image,
         command=command,
+        working_directory=CONTAINER_OUTDIR,
         ram=ram,
         runtime=runtime,
         gpus=gpus,
@@ -382,7 +383,7 @@ def _handle_directory_outputs(host_outdir, outputs, docker_manager):
     os.makedirs(host_outdir, exist_ok=True)
 
     for output_key, output_file_information in outputs.items():
-        file_path = output_file_information['path']
+        file_path = os.path.join(CONTAINER_OUTDIR, output_file_information['path'])
 
         if not file_path:
             continue

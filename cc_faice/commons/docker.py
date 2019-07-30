@@ -7,6 +7,7 @@ from typing import List
 import docker
 from docker.errors import DockerException
 from docker.models.containers import Container
+from requests.exceptions import ConnectionError
 
 from cc_core.commons.exceptions import AgentError
 from cc_core.commons.engines import DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIME
@@ -30,8 +31,11 @@ class DockerManager:
     def __init__(self):
         try:
             self._client = docker.from_env()
+            self._client.info()  # This raises a ConnectionError, if the docker socket was not found
+        except ConnectionError:
+            raise DockerException('Could not connect to docker socket. Is the docker daemon running?')
         except DockerException:
-            raise DockerException('Could not connect to docker daemon. Is the docker daemon running?')
+            raise DockerException('Could not create docker client from environment.')
 
         self._container = None  # type: Container or None
 
@@ -44,6 +48,7 @@ class DockerManager:
             image,
             command,
             ram,
+            working_directory,
             runtime=DEFAULT_DOCKER_RUNTIME,
             gpus=None,
             environment=None,
@@ -61,6 +66,8 @@ class DockerManager:
         :type command: List[str]
         :param ram: The ram limit for this container in megabytes
         :type ram: int
+        :param working_directory: The working directory inside the docker container
+        :type working_directory: str
         :param runtime: A runtime string for the container (like nvidia)
         :type runtime: str
         :param gpus: A specification of gpus to enable in this docker container
@@ -95,6 +102,7 @@ class DockerManager:
             command,
             name=name,
             user='1000:1000',
+            working_dir=working_directory,
             mem_limit=mem_limit,
             memswap_limit=mem_limit,
             runtime=runtime,

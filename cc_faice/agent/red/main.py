@@ -160,13 +160,16 @@ def run(red_file,
         runtime = engine_to_runtime(red_data['container']['engine'])
         environment = env_vars(preserve_environment)
 
-        # gpus
-        gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
-        gpu_devices = get_devices(red_data['container']['engine'])
-        gpus = match_gpus(gpu_devices, gpu_requirements)
-
         # create docker manager
         docker_manager = DockerManager()
+
+        # gpus
+        gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
+        if gpu_requirements:
+            gpu_devices = docker_manager.get_nvidia_docker_gpus()
+            gpus = match_gpus(gpu_devices, gpu_requirements)
+        else:
+            gpus = None
 
         if not disable_pull:
             registry_auth = red_data['container']['settings']['image'].get('auth')

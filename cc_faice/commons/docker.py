@@ -14,6 +14,9 @@ from cc_core.commons.engines import DEFAULT_DOCKER_RUNTIME, NVIDIA_DOCKER_RUNTIM
 from cc_core.commons.gpu_info import set_nvidia_environment_variables, GPUDevice
 
 
+GPU_QUERY_IMAGE = 'nvidia/cuda:8.0-runtime'
+
+
 def env_vars(preserve_environment):
     if preserve_environment is None:
         return {}
@@ -38,6 +41,55 @@ class DockerManager:
             raise DockerException('Could not create docker client from environment.')
 
         self._container = None  # type: Container or None
+
+    def get_nvidia_docker_gpus(self):
+        """
+        Returns a list of GPUDevices, which are available for this docker client.
+
+        This function starts a nvidia docker container and executes nvidia-smi in order to retrieve information about
+        the gpus, that are available to this docker_manager.
+
+        :raise DockerException: If the stdout of the query could not be parsed
+
+        :return: A list of GPUDevices
+        :rtype: List[GPUDevice]
+        """
+        self.pull(GPU_QUERY_IMAGE)
+
+        # this creates an csv output that contains gpu indices and their total memory in mega bytes
+        command = [
+            'nvidia-smi',
+            '--query-gpu=index,memory.total',
+            '--format=csv,noheader,nounits'
+        ]
+
+        try:
+            stdout = self._client.containers.run(
+                GPU_QUERY_IMAGE,
+                command=command,
+                runtime='nvidia'
+            )
+        except DockerException:
+            return []
+
+        gpus = []
+        for gpu_line in stdout.encode('utf-8').splitlines():
+            try:
+                index_text, memory_text = gpu_line.split(sep=',')  # type: str
+
+                index = int(index_text.strip())
+                memory = int(memory_text.strip())
+
+                gpu = GPUDevice(index, memory)
+                gpus.append(gpu)
+
+            except ValueError as e:
+                raise DockerException(
+                    'Could not parse gpu query output:\n{}\nFailed with the following message:\n{}'
+                    .format(stdout, str(e))
+                )
+
+        return gpus
 
     def pull(self, image, auth=None):
         self._client.images.pull(image, auth_config=auth)

@@ -193,6 +193,7 @@ def run(red_file,
 
             # handle execution result
             result['containers'].append(container_execution_result.to_dict())
+            result['docker_stats'] = container_execution_result.container_stats
             container_execution_result.raise_for_state()
     except Exception as e:
         print_exception(e, secret_values)
@@ -269,7 +270,7 @@ class ExecutionResultType(Enum):
 
 
 class ContainerExecutionResult:
-    def __init__(self, state, command, container_name, agent_execution_result, agent_std_err):
+    def __init__(self, state, command, container_name, agent_execution_result, agent_std_err, container_stats):
         """
         Creates a new Container Execution Result.
 
@@ -278,12 +279,14 @@ class ContainerExecutionResult:
         :param container_name: The name of the docker container
         :param agent_execution_result: The parsed json output of the blue agent
         :param agent_std_err: The std err as list of string of the blue agent
+        :param container_stats: The stats of the executed container, given as dictionary
         """
         self.state = state
         self.command = command
         self.container_name = container_name
         self.agent_execution_result = agent_execution_result
         self.agent_std_err = agent_std_err
+        self.container_stats = container_stats
 
     def successful(self):
         return self.state == ExecutionResultType.Succeeded
@@ -370,7 +373,9 @@ def run_blue_batch(blue_batch,
     with _create_batch_archive(blue_batch, BLUE_AGENT_CONTAINER_DIR) as blue_archive:
         docker_manager.put_archive(blue_archive)
 
-    blue_agent_result, blue_agent_stderr = docker_manager.run_container()
+    agent_execution_result = docker_manager.run_container()
+
+    blue_agent_result = agent_execution_result.get_agent_result_dict()
 
     if blue_agent_result['state'] == 'succeeded':
         state = ExecutionResultType.Succeeded
@@ -391,7 +396,8 @@ def run_blue_batch(blue_batch,
         command,
         container_name,
         blue_agent_result,
-        blue_agent_stderr
+        agent_execution_result.get_stderr(),
+        agent_execution_result.get_stats()
     )
 
 

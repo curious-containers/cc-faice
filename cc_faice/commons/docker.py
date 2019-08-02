@@ -30,6 +30,59 @@ def env_vars(preserve_environment):
     return environment
 
 
+class AgentExecutionResult:
+    def __init__(self, stdout, stderr, stats):
+        """
+        Creates a new AgentExecutionResult
+
+        :param stdout: The decoded agent stdout
+        :type stdout: str
+        :param stderr: The decoded agent stderr
+        :type stderr: str
+        :param stats: A dictionary containing information about the container execution
+        :type stats: Dict
+        """
+        self._stdout = stdout
+        self._parsed_stdout = None
+        self._stderr = stderr
+        self._stats = stats
+
+    def get_stdout(self):
+        return self._stdout
+
+    def get_agent_result_dict(self):
+        """
+        This function parses the stdout only once.
+
+        :return: The result of the agent as dictionary
+        :rtype: Dict
+
+        :raise AgentError: If the stdout of the agent is not valid json
+        """
+        if self._parsed_stdout is None:
+            try:
+                self._parsed_stdout = json.loads(self._stdout)
+            except json.JSONDecodeError:
+                raise AgentError(
+                    'Could not parse stdout of agent.\n'
+                    'Agent stdout:\n{}'
+                    '\nAgent stderr:\n{}'
+                    .format(self._stdout, self._stderr)
+                )
+
+        return self._parsed_stdout
+
+    def get_stderr(self):
+        return self._stderr
+
+    def get_stats(self):
+        """
+        :return: the stats of the docker container after execution has finished
+        :rtype: Dict
+        """
+        return self._stats
+
+
 class DockerManager:
     def __init__(self):
         try:
@@ -176,27 +229,17 @@ class DockerManager:
         """
         Runs the container and waits for the execution to end.
 
-        :return: A tuple (stdout, stderr)
-                 stdout: a dictionary containing the stdout of the container execution parsed as json object
-                 stderr: A string containing the stderr of the container execution
-        :rtype: Tuple[dict, str]
-
-        :raise AgentError: If the stdout of the agent is not valid json
+        :return: A agent execution result, representing the result of this container execution
+        :rtype: AgentExecutionResult
         """
         self._container.start()
         self._container.wait()
 
-        std_out = self._container.logs(stdout=True, stderr=False).decode('utf-8')
-        std_err = self._container.logs(stdout=False, stderr=True).decode('utf-8')
+        stdout = self._container.logs(stdout=True, stderr=False).decode('utf-8')
+        stderr = self._container.logs(stdout=False, stderr=True).decode('utf-8')
+        stats = self._container.stats(stream=False)
 
-        try:
-            parsed_std_out = json.loads(std_out)
-        except json.JSONDecodeError:
-            raise AgentError(
-                'Could not parse stdout of agent.\nAgent stdout:\n{}\nAgent stderr:\n{}'.format(std_out, std_err)
-            )
-
-        return parsed_std_out, std_err
+        return AgentExecutionResult(stdout, stderr, stats)
 
     def get_file_archive(self, file_path):
         """

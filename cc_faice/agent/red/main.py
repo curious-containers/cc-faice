@@ -18,7 +18,7 @@ from uuid import uuid4
 from cc_core.commons.engines import engine_to_runtime, engine_validation
 from cc_core.commons.exceptions import print_exception, exception_format, AgentError
 from cc_core.commons.files import load_and_read, dump_print
-from cc_core.commons.gpu_info import get_gpu_requirements, get_devices, match_gpus
+from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, InsufficientGPUError
 from cc_core.commons.red import red_validation
 from cc_core.commons.red_to_blue import convert_red_to_blue, CONTAINER_OUTDIR
 from cc_core.commons.templates import get_secret_values, normalize_keys
@@ -164,12 +164,7 @@ def run(red_file,
         docker_manager = DockerManager()
 
         # gpus
-        gpu_requirements = get_gpu_requirements(red_data['container']['settings'].get('gpus'))
-        if gpu_requirements:
-            gpu_devices = docker_manager.get_nvidia_docker_gpus()
-            gpus = match_gpus(gpu_devices, gpu_requirements)
-        else:
-            gpus = None
+        gpus = get_gpus(docker_manager, red_data['container']['settings'].get('gpus'))
 
         if not disable_pull:
             registry_auth = red_data['container']['settings']['image'].get('auth')
@@ -205,6 +200,39 @@ def run(red_file,
         result['state'] = 'failed'
 
     return result
+
+
+def get_gpus(docker_manager, gpu_settings):
+    """
+    Returns a list of gpus which are sufficient for the given gpu settings. Otherwise raise an Exception
+
+    :param docker_manager: The DockerManager used to query gpus
+    :type docker_manager: DockerManager
+    :param gpu_settings: The gpu settings of the red experiment specifying the required gpus
+    :type gpu_settings: Dict
+
+    :return: A list of GPUDevices to use for this experiment
+    :rtype: List[GPUDevice]
+
+    :raise InsufficientGPUError: If GPU settings could not be fulfilled
+    """
+    gpus = None
+
+    gpu_requirements = get_gpu_requirements(gpu_settings)
+    if gpu_requirements:
+        gpu_devices, err_msg = docker_manager.get_nvidia_docker_gpus()
+        try:
+            gpus = match_gpus(gpu_devices, gpu_requirements)
+        except InsufficientGPUError:
+            if err_msg:
+                raise InsufficientGPUError(
+                    'Querying GPUs failed. Make sure nvidia-docker is installed on the docker host.\n'
+                    'Failed with the following message:\n{}'.format(err_msg)
+                )
+            else:
+                raise
+
+    return gpus
 
 
 def _get_blue_batch_mount_keys(blue_batch):

@@ -51,8 +51,8 @@ class DockerManager:
 
         :raise DockerException: If the stdout of the query could not be parsed
 
-        :return: A list of GPUDevices
-        :rtype: List[GPUDevice]
+        :return: A list of GPUDevices and an optional error string, if something went wrong
+        :rtype: tuple[List[GPUDevice], str or None]
         """
         self.pull(GPU_QUERY_IMAGE)
 
@@ -69,8 +69,8 @@ class DockerManager:
                 command=command,
                 runtime='nvidia'
             )
-        except DockerException:
-            return []
+        except DockerException as e:
+            return [], repr(e)
 
         gpus = []
         for gpu_line in stdout.decode('utf-8').splitlines():
@@ -89,7 +89,7 @@ class DockerManager:
                     .format(stdout, str(e))
                 )
 
-        return gpus
+        return gpus, None
 
     def pull(self, image, auth=None):
         self._client.images.pull(image, auth_config=auth)

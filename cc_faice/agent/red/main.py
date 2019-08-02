@@ -234,6 +234,8 @@ def get_gpu_devices(docker_manager, gpu_ids):
     """
     gpu_devices = docker_manager.get_nvidia_docker_gpus()
 
+    gpu_ids = gpu_ids.copy()
+
     # limit gpu devices to the given gpu ids, if given
     if gpu_ids:
         # only use gpu devices, that are specified in gpu_ids

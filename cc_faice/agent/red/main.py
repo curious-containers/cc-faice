@@ -207,7 +207,6 @@ def run(red_file,
 
             # handle execution result
             result['containers'].append(container_execution_result.to_dict())
-            result['docker_stats'] = container_execution_result.container_stats
             container_execution_result.raise_for_state()
     except Exception as e:
         print_exception(e, secret_values)
@@ -356,7 +355,8 @@ class ContainerExecutionResult:
             'command': self.command,
             'containerName': self.container_name,
             'agentStdOut': self.agent_execution_result,
-            'agentStdErr': self.agent_std_err
+            'agentStdErr': self.agent_std_err,
+            'dockerStats': self.container_stats
         }
 
     def raise_for_state(self):

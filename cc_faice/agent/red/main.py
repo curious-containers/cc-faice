@@ -35,6 +35,11 @@ BLUE_AGENT_CONTAINER_DIR = '/cc'
 OUTPUTS_DIRECTORY_NAME = 'outputs'
 
 
+# noinspection PyPep8Naming
+def IntegerSet(s):
+    return set(int(i) for i in s.split(','))
+
+
 def attach_args(parser):
     parser.add_argument(
         'red_file', action='store', type=str, metavar='REDFILE',
@@ -76,6 +81,11 @@ def attach_args(parser):
         '--keyring-service', action='store', type=str, metavar='KEYRING_SERVICE', default='red',
         help='Keyring service to resolve template values, default is "red".'
     )
+    parser.add_argument(
+        '--gpu-ids', type=IntegerSet, metavar='GPU_IDS',
+        help='Use the GPUs with the given GPU_IDS for this execution. GPU_IDS should be a comma separated list of '
+             'integers, like --gpu-ids "1,2,3".'
+    )
 
 
 def _get_commandline_args():
@@ -115,6 +125,7 @@ def run(red_file,
         insecure,
         output_mode,
         keyring_service,
+        gpu_ids,
         **_
         ):
     """
@@ -122,13 +133,15 @@ def run(red_file,
 
     :param red_file: The path or URL to the RED File to execute
     :param disable_pull: If True the docker image is not pulled from an registry
-    :param leave_container:
+    :param leave_container: If set to True, the executed docker container will not be removed.
     :param preserve_environment: List of environment variables to preserve inside the docker container.
     :param non_interactive: If True, unresolved template values are not asked interactively
     :param insecure: Allow insecure capabilities
-    :param output_mode: Either Connectors or Directory. If Directory Connectors, the blue agent will try to execute
-    :param keyring_service: The keyring service name to use for template substitution the output connectors, if
-    Directory faice will mount an outputs directory and the blue agent will move the output files into this directory.
+    :param output_mode: Either Connectors or Directory. If Connectors, the blue agent will try to execute the output
+                        connectors. If Directory faice will copy the output files into the host output directory.
+    :param keyring_service: The keyring service name to use for template substitution
+    :param gpu_ids: A list of gpu ids, that should be used
+    :type gpu_ids: list[int]
     """
 
     result = {
@@ -164,7 +177,7 @@ def run(red_file,
         docker_manager = DockerManager()
 
         # gpus
-        gpus = get_gpus(docker_manager, red_data['container']['settings'].get('gpus'))
+        gpus = get_gpus(docker_manager, red_data['container']['settings'].get('gpus'), gpu_ids)
 
         if not disable_pull:
             registry_auth = red_data['container']['settings']['image'].get('auth')
@@ -203,7 +216,43 @@ def run(red_file,
     return result
 
 
-def get_gpus(docker_manager, gpu_settings):
+def get_gpu_devices(docker_manager, gpu_ids):
+    """
+    Gets all GPU devices that are available for this execution. If gpu_ids is given, the returned devices are limited to
+    devices that are in gpu_ids. If a gpu_id is given, whose device could not be found, an InsufficientGPUError is
+    raised.
+
+    :param docker_manager: The DockerManager used to query gpus
+    :type docker_manager: DockerManager
+    :param gpu_ids: The gpu_ids specified by the user to use for the execution
+    :type gpu_ids: list[int]
+
+    :return: An iterable containing all gpu devices which are available for this execution
+    :rtype: Iterable[GPUDevice]
+
+    :raise InsufficientGPUError: If a gpu_id was given, but no device with this gpu_id was found.
+    """
+    gpu_devices = docker_manager.get_nvidia_docker_gpus()
+
+    # limit gpu devices to the given gpu ids, if given
+    if gpu_ids:
+        # only use gpu devices, that are specified in gpu_ids
+        used_gpu_devices = []
+        for gpu_device in gpu_devices:
+            if gpu_device.device_id in gpu_ids:
+                used_gpu_devices.append(gpu_device)
+                gpu_ids.remove(gpu_device.device_id)
+
+        # check for gpu_ids, that have no device
+        if gpu_ids:
+            raise InsufficientGPUError(
+                'GPU id "{}" was specified by cli argument, but no device with this id was found'.format(gpu_ids)
+            )
+
+    return gpu_devices
+
+
+def get_gpus(docker_manager, gpu_settings, gpu_ids):
     """
     Returns a list of gpus which are sufficient for the given gpu settings. Otherwise raise an Exception
 
@@ -211,6 +260,8 @@ def get_gpus(docker_manager, gpu_settings):
     :type docker_manager: DockerManager
     :param gpu_settings: The gpu settings of the red experiment specifying the required gpus
     :type gpu_settings: Dict
+    :param gpu_ids: The gpu_ids specified by the user to use for the execution
+    :type gpu_ids: list[int]
 
     :return: A list of GPUDevices to use for this experiment
     :rtype: List[GPUDevice]
@@ -220,18 +271,16 @@ def get_gpus(docker_manager, gpu_settings):
     gpus = None
 
     gpu_requirements = get_gpu_requirements(gpu_settings)
-    if gpu_requirements:
-        gpu_devices, err_msg = docker_manager.get_nvidia_docker_gpus()
-        try:
-            gpus = match_gpus(gpu_devices, gpu_requirements)
-        except InsufficientGPUError:
-            if err_msg:
-                raise InsufficientGPUError(
-                    'Querying GPUs failed. Make sure nvidia-docker is installed on the docker host.\n'
-                    'Failed with the following message:\n{}'.format(err_msg)
-                )
-            else:
-                raise
+
+    # dont do anything, if no gpus are required
+    if gpu_requirements or gpu_ids:
+        gpu_devices = get_gpu_devices(docker_manager, gpu_ids)
+
+        gpus = match_gpus(gpu_devices, gpu_requirements)
+
+        # if gpu_ids are specified, ignore gpu matching
+        if gpu_ids:
+            gpus = gpu_devices
 
     return gpus
 

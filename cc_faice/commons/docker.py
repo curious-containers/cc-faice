@@ -67,7 +67,8 @@ class DockerManager:
             stdout = self._client.containers.run(
                 GPU_QUERY_IMAGE,
                 command=command,
-                runtime='nvidia'
+                runtime='nvidia',
+                remove=True
             )
         except DockerException as e:
             return [], repr(e)

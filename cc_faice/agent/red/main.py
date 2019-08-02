@@ -12,6 +12,7 @@ import json
 import stat
 
 from argparse import ArgumentParser
+from typing import List
 from enum import Enum
 from uuid import uuid4
 
@@ -141,7 +142,7 @@ def run(red_file,
                         connectors. If Directory faice will copy the output files into the host output directory.
     :param keyring_service: The keyring service name to use for template substitution
     :param gpu_ids: A list of gpu ids, that should be used
-    :type gpu_ids: list[int]
+    :type gpu_ids: List[int]
     """
 
     result = {
@@ -225,10 +226,10 @@ def get_gpu_devices(docker_manager, gpu_ids):
     :param docker_manager: The DockerManager used to query gpus
     :type docker_manager: DockerManager
     :param gpu_ids: The gpu_ids specified by the user to use for the execution
-    :type gpu_ids: list[int]
+    :type gpu_ids: List[int]
 
     :return: An iterable containing all gpu devices which are available for this execution
-    :rtype: Iterable[GPUDevice]
+    :rtype: List[GPUDevice]
 
     :raise InsufficientGPUError: If a gpu_id was given, but no device with this gpu_id was found.
     """
@@ -244,6 +245,8 @@ def get_gpu_devices(docker_manager, gpu_ids):
             if gpu_device.device_id in gpu_ids:
                 used_gpu_devices.append(gpu_device)
                 gpu_ids.remove(gpu_device.device_id)
+
+        gpu_devices = used_gpu_devices
 
         # check for gpu_ids, that have no device
         if gpu_ids:
@@ -263,7 +266,7 @@ def get_gpus(docker_manager, gpu_settings, gpu_ids):
     :param gpu_settings: The gpu settings of the red experiment specifying the required gpus
     :type gpu_settings: Dict
     :param gpu_ids: The gpu_ids specified by the user to use for the execution
-    :type gpu_ids: list[int]
+    :type gpu_ids: List[int]
 
     :return: A list of GPUDevices to use for this experiment
     :rtype: List[GPUDevice]

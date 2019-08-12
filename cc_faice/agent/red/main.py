@@ -470,7 +470,13 @@ def _handle_directory_outputs(host_outdir, outputs, docker_manager):
     os.makedirs(host_outdir, exist_ok=True)
 
     for output_key, output_file_information in outputs.items():
-        file_path = os.path.join(CONTAINER_OUTPUT_DIR, output_file_information['path'])
+        container_file_path = output_file_information['path']
+
+        # continue, if the output file was not found
+        if container_file_path is None:
+            continue
+
+        file_path = os.path.join(CONTAINER_OUTPUT_DIR, container_file_path)
 
         if not file_path:
             continue

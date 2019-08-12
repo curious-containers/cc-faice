@@ -21,7 +21,8 @@ from cc_core.commons.exceptions import print_exception, exception_format, AgentE
 from cc_core.commons.files import load_and_read, dump_print
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, InsufficientGPUError
 from cc_core.commons.red import red_validation
-from cc_core.commons.red_to_blue import convert_red_to_blue, CONTAINER_OUTDIR
+from cc_core.commons.red_to_blue import convert_red_to_blue, CONTAINER_OUTDIR, CONTAINER_INPUT_DIR, \
+    CONTAINER_AGENT_PATH, CONTAINER_BLUE_FILE_PATH
 from cc_core.commons.templates import get_secret_values, normalize_keys
 
 from cc_faice.commons.templates import complete_red_templates
@@ -30,10 +31,6 @@ from cc_faice.commons.docker import env_vars, DockerManager
 DESCRIPTION = 'Run an experiment as described in a REDFILE with ccagent red in a container.'
 
 PYTHON_INTERPRETER = 'python3'
-BLUE_FILE_CONTAINER_NAME = 'blue_file.json'
-BLUE_AGENT_CONTAINER_NAME = 'blue_agent.py'
-BLUE_AGENT_CONTAINER_DIR = '/cc'
-OUTPUTS_DIRECTORY_NAME = 'outputs'
 
 
 # noinspection PyPep8Naming
@@ -424,7 +421,7 @@ def run_blue_batch(blue_batch,
         enable_fuse=is_mounting,
     )
 
-    with _create_batch_archive(blue_batch, BLUE_AGENT_CONTAINER_DIR) as blue_archive:
+    with _create_batch_archive(blue_batch) as blue_archive:
         docker_manager.put_archive(blue_archive)
 
     agent_execution_result = docker_manager.run_container()
@@ -491,7 +488,7 @@ def _handle_directory_outputs(host_outdir, outputs, docker_manager):
         file_archive.close()
 
 
-def _create_batch_archive(blue_data, directory):
+def _create_batch_archive(blue_data):
     """
     Creates a tar archive. This archive contains the blue agent, a blue file and the outputs-directory.
     The blue file is filled with the given blue data.
@@ -502,8 +499,6 @@ def _create_batch_archive(blue_data, directory):
 
     :param blue_data: The data to put into the blue file of the returned archive
     :type blue_data: dict
-    :param directory: Inside the archive the blue agent and the blue batch is located under the given directory
-    :type directory: str
     :return: A tar archive containing the blue agent and the given blue batch
     :rtype: io.BytesIO or bytes
     """
@@ -511,33 +506,54 @@ def _create_batch_archive(blue_data, directory):
     tar_file = tarfile.open(mode='w', fileobj=data_file)
 
     # add blue agent
-    agent_archive_name = os.path.join(directory, BLUE_AGENT_CONTAINER_NAME)
-    tar_file.add(get_blue_agent_host_path(), arcname=agent_archive_name, recursive=False)
+    tar_file.add(get_blue_agent_host_path(), arcname=CONTAINER_AGENT_PATH, recursive=False)
 
     # add blue file
-    blue_batch_name = os.path.join(directory, BLUE_FILE_CONTAINER_NAME)
     blue_batch_content = json.dumps(blue_data).encode('utf-8')
     # see https://bugs.python.org/issue22208 for more information
-    blue_batch_tarinfo = tarfile.TarInfo(blue_batch_name)
+    blue_batch_tarinfo = tarfile.TarInfo(CONTAINER_BLUE_FILE_PATH)
     blue_batch_tarinfo.size = len(blue_batch_content)
     tar_file.addfile(blue_batch_tarinfo, io.BytesIO(blue_batch_content))
 
     # add outputs directory
-    output_directory_name = os.path.join(directory, OUTPUTS_DIRECTORY_NAME)
-    output_directory_tarinfo = tarfile.TarInfo(output_directory_name)
-    output_directory_tarinfo.type = tarfile.DIRTYPE
-    output_directory_tarinfo.uid = 1000
-    output_directory_tarinfo.gid = 1000
-    output_directory_tarinfo.uname = 'cc'
-    output_directory_tarinfo.gname = 'cc'
-    output_directory_tarinfo.mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
+    output_directory_tarinfo = create_directory_tarinfo(CONTAINER_OUTDIR, owner_name='cc')
     tar_file.addfile(output_directory_tarinfo)
+
+    # add inputs_directory
+    input_directory_tarinfo = create_directory_tarinfo(CONTAINER_INPUT_DIR, owner_name='cc')
+    tar_file.addfile(input_directory_tarinfo)
 
     # close file
     tar_file.close()
     data_file.seek(0)
 
     return data_file
+
+
+def create_directory_tarinfo(directory_name, owner_name, owner_id=1000):
+    """
+    Creates a tarfile.TarInfo object, that represents a directory with the given directory name.
+    The owner of the file directory has read, write, execute privileges for the created directory TarInfo object.
+
+    :param directory_name: The name of the directory represented by the created TarInfo
+    :type directory_name: str
+    :param owner_name: The name of the owner of the directory
+    :type owner_name: str
+    :param owner_id: The id of the owner of the directory
+    :type owner_id: int
+    :return: A TarInfo object representing a directory with the given name
+    :rtype: tarfile.TarInfo
+    """
+    directory_tarinfo = tarfile.TarInfo(directory_name)
+
+    directory_tarinfo.type = tarfile.DIRTYPE
+    directory_tarinfo.uid = owner_id
+    directory_tarinfo.gid = owner_id
+    directory_tarinfo.uname = owner_name
+    directory_tarinfo.gname = owner_name
+    directory_tarinfo.mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
+
+    return directory_tarinfo
 
 
 def define_is_mounting(blue_batch, insecure):
@@ -561,9 +577,7 @@ def _create_blue_agent_command():
     :return: A list of strings to execute inside the docker container.
     :rtype: List[str]
     """
-    blue_agent_container_path = os.path.join(BLUE_AGENT_CONTAINER_DIR, BLUE_AGENT_CONTAINER_NAME)
-    blue_file_container_path = os.path.join(BLUE_AGENT_CONTAINER_DIR, BLUE_FILE_CONTAINER_NAME)
-    return [PYTHON_INTERPRETER, blue_agent_container_path, blue_file_container_path, '--debug']
+    return [PYTHON_INTERPRETER, CONTAINER_AGENT_PATH, CONTAINER_BLUE_FILE_PATH, '--debug']
 
 
 def get_blue_agent_host_path():

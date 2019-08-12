@@ -112,7 +112,8 @@ def run(red_file, non_interactive, fmt, insecure, keyring_service, **_):
                 non_interactive=non_interactive,
                 insecure=insecure,
                 output_mode=faice_output_mode,
-                keyring_service=keyring_service
+                keyring_service=keyring_service,
+                gpu_ids=None
             )
             return result
 

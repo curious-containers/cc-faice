@@ -138,8 +138,8 @@ def run(red_file,
     :param output_mode: Either Connectors or Directory. If Connectors, the blue agent will try to execute the output
                         connectors. If Directory faice will copy the output files into the host output directory.
     :param keyring_service: The keyring service name to use for template substitution
-    :param gpu_ids: A list of gpu ids, that should be used
-    :type gpu_ids: List[int]
+    :param gpu_ids: A list of gpu ids, that should be used. If None all gpus are considered.
+    :type gpu_ids: List[int] or None
     """
 
     result = {
@@ -221,7 +221,7 @@ def get_gpu_devices(docker_manager, gpu_ids):
 
     :param docker_manager: The DockerManager used to query gpus
     :type docker_manager: DockerManager
-    :param gpu_ids: The gpu_ids specified by the user to use for the execution
+    :param gpu_ids: The gpu_ids specified by the user to use for the execution. If None, all gpus are considered.
     :type gpu_ids: List[int]
 
     :return: An iterable containing all gpu devices which are available for this execution
@@ -261,8 +261,8 @@ def get_gpus(docker_manager, gpu_settings, gpu_ids):
     :type docker_manager: DockerManager
     :param gpu_settings: The gpu settings of the red experiment specifying the required gpus
     :type gpu_settings: Dict
-    :param gpu_ids: The gpu_ids specified by the user to use for the execution
-    :type gpu_ids: List[int]
+    :param gpu_ids: The gpu_ids specified by the user to use for the execution. If None all gpus are considered.
+    :type gpu_ids: List[int] or None
 
     :return: A list of GPUDevices to use for this experiment
     :rtype: List[GPUDevice]

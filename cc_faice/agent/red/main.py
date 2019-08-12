@@ -18,10 +18,10 @@ from uuid import uuid4
 
 from cc_core.commons.engines import engine_to_runtime, engine_validation
 from cc_core.commons.exceptions import print_exception, exception_format, AgentError
-from cc_core.commons.files import load_and_read, dump_print
+from cc_core.commons.files import load_and_read, dump_print, create_directory_tarinfo
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, InsufficientGPUError
 from cc_core.commons.red import red_validation
-from cc_core.commons.red_to_blue import convert_red_to_blue, CONTAINER_OUTDIR, CONTAINER_INPUT_DIR, \
+from cc_core.commons.red_to_blue import convert_red_to_blue, CONTAINER_OUTPUT_DIR, CONTAINER_INPUT_DIR, \
     CONTAINER_AGENT_PATH, CONTAINER_BLUE_FILE_PATH
 from cc_core.commons.templates import get_secret_values, normalize_keys
 
@@ -413,7 +413,7 @@ def run_blue_batch(blue_batch,
         name=container_name,
         image=docker_image,
         command=command,
-        working_directory=CONTAINER_OUTDIR,
+        working_directory=CONTAINER_OUTPUT_DIR,
         ram=ram,
         runtime=runtime,
         gpus=gpus,
@@ -470,7 +470,7 @@ def _handle_directory_outputs(host_outdir, outputs, docker_manager):
     os.makedirs(host_outdir, exist_ok=True)
 
     for output_key, output_file_information in outputs.items():
-        file_path = os.path.join(CONTAINER_OUTDIR, output_file_information['path'])
+        file_path = os.path.join(CONTAINER_OUTPUT_DIR, output_file_information['path'])
 
         if not file_path:
             continue
@@ -516,7 +516,7 @@ def _create_batch_archive(blue_data):
     tar_file.addfile(blue_batch_tarinfo, io.BytesIO(blue_batch_content))
 
     # add outputs directory
-    output_directory_tarinfo = create_directory_tarinfo(CONTAINER_OUTDIR, owner_name='cc')
+    output_directory_tarinfo = create_directory_tarinfo(CONTAINER_OUTPUT_DIR, owner_name='cc')
     tar_file.addfile(output_directory_tarinfo)
 
     # add inputs_directory
@@ -528,32 +528,6 @@ def _create_batch_archive(blue_data):
     data_file.seek(0)
 
     return data_file
-
-
-def create_directory_tarinfo(directory_name, owner_name, owner_id=1000):
-    """
-    Creates a tarfile.TarInfo object, that represents a directory with the given directory name.
-    The owner of the file directory has read, write, execute privileges for the created directory TarInfo object.
-
-    :param directory_name: The name of the directory represented by the created TarInfo
-    :type directory_name: str
-    :param owner_name: The name of the owner of the directory
-    :type owner_name: str
-    :param owner_id: The id of the owner of the directory
-    :type owner_id: int
-    :return: A TarInfo object representing a directory with the given name
-    :rtype: tarfile.TarInfo
-    """
-    directory_tarinfo = tarfile.TarInfo(directory_name)
-
-    directory_tarinfo.type = tarfile.DIRTYPE
-    directory_tarinfo.uid = owner_id
-    directory_tarinfo.gid = owner_id
-    directory_tarinfo.uname = owner_name
-    directory_tarinfo.gname = owner_name
-    directory_tarinfo.mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR
-
-    return directory_tarinfo
 
 
 def define_is_mounting(blue_batch, insecure):

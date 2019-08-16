@@ -216,7 +216,8 @@ class DockerManager:
             memswap_limit=mem_limit,
             runtime=runtime,
             environment=environment,
-            cap_add=capabilities
+            cap_add=capabilities,
+            devices=devices
         )
 
     def put_archive(self, archive):

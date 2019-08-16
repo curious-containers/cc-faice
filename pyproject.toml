@@ -11,7 +11,7 @@ description = "FAICE (Fair Collaboration and Experiments) is part of the Curious
 [tool.poetry.dependencies]
 python = "^3.5"
 flask = "^1.0"
-docker = "^3.4"
+docker = "^4.0"
 keyring = "^19.0"
 jsonschema = "^3.0"
 pycuda = { version = "^2018.1.1", optional = true }

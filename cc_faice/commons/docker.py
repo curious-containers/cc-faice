@@ -5,7 +5,7 @@ import tarfile
 from typing import List
 
 import docker
-from docker.errors import DockerException
+from docker.errors import DockerException, APIError
 from docker.models.containers import Container
 from requests.exceptions import ConnectionError
 
@@ -31,10 +31,12 @@ def env_vars(preserve_environment):
 
 
 class AgentExecutionResult:
-    def __init__(self, stdout, stderr, stats):
+    def __init__(self, return_code, stdout, stderr, stats):
         """
         Creates a new AgentExecutionResult
 
+        :param return_code: The return code of the execution
+        :type return_code: int
         :param stdout: The decoded agent stdout
         :type stdout: str
         :param stderr: The decoded agent stderr
@@ -42,6 +44,7 @@ class AgentExecutionResult:
         :param stats: A dictionary containing information about the container execution
         :type stats: Dict
         """
+        self.return_code = return_code
         self._stdout = stdout
         self._parsed_stdout = None
         self._stderr = stderr
@@ -92,8 +95,6 @@ class DockerManager:
             raise DockerException('Could not connect to docker socket. Is the docker daemon running?')
         except DockerException:
             raise DockerException('Could not create docker client from environment.')
-
-        self._container = None  # type: Container or None
 
     def get_nvidia_docker_gpus(self):
         """
@@ -155,24 +156,21 @@ class DockerManager:
             self,
             name,
             image,
-            command,
             ram,
             working_directory,
             runtime=DEFAULT_DOCKER_RUNTIME,
             gpus=None,
             environment=None,
-            enable_fuse=False,
+            enable_fuse=False
     ):
         """
-        Creates a docker container with the given arguments. All following calls to this docker manager refer to this
-        docker container.
+        Creates a docker container with the given arguments. This docker container is running endlessly until
+        container.stop() is called.
 
         :param name: The name of the container
         :type name: str
         :param image: The image to use for this container
         :type image: str
-        :param command: The command to execute inside the container
-        :type command: List[str]
         :param ram: The ram limit for this container in megabytes
         :type ram: int
         :param working_directory: The working directory inside the docker container
@@ -185,6 +183,9 @@ class DockerManager:
         :type environment: Dict[str, Any]
         :param enable_fuse: If True, SYS_ADMIN capabilities are granted for this container and /dev/fuse is mounted
         :type enable_fuse: bool
+
+        :return: The created container
+        :rtype: Container
         """
         if environment is None:
             environment = {}
@@ -200,15 +201,16 @@ class DockerManager:
         if runtime == NVIDIA_DOCKER_RUNTIME:
             set_nvidia_environment_variables(environment, map(lambda gpu: gpu.device_id, gpus))
 
+        # enable fuse
         devices = []
         capabilities = []
         if enable_fuse:
             devices.append('/dev/fuse')
             capabilities.append('SYS_ADMIN')
 
-        self._container = self._client.containers.create(
+        container = self._client.containers.create(
             image,
-            command,
+            command='/bin/sh',
             name=name,
             user='1000:1000',
             working_dir=working_directory,
@@ -217,38 +219,83 @@ class DockerManager:
             runtime=runtime,
             environment=environment,
             cap_add=capabilities,
-            devices=devices
+            devices=devices,
+            # needed to run the container endlessly
+            tty=True,
+            stdin_open=True,
+            auto_remove=False,
         )
 
-    def put_archive(self, archive):
+        container.start()
+
+        return container
+
+    @staticmethod
+    def put_archive(container, archive):
         """
         Inserts the given tar archive into the container.
 
+        :param container: The container to put the archive in
+        :type container: Container
         :param archive: The archive, that is copied into the container
-        :type archive: tarfile.TarFile
+        :type archive: bytes
         """
-        self._container.put_archive('/', archive)
+        container.put_archive('/', archive)
 
-    def run_container(self):
+    @staticmethod
+    def run_command(container, command, user='cc', work_dir=None):
         """
-        Runs the container and waits for the execution to end.
+        Runs the given command in the given container and waits for the execution to end.
+
+        :param container: The container to run the command in. The given container should be in state running, like it
+                          is, if created by docker_manager.create_container()
+        :type container: Container
+        :param command: The command to execute inside the given docker container
+        :type command: list[str] or str
+        :param user: The user to execute the command
+        :type user: str or int
+        :param work_dir: The working directory where to execute the command
+        :type work_dir: str
 
         :return: A agent execution result, representing the result of this container execution
         :rtype: AgentExecutionResult
         """
-        self._container.start()
-        self._container.wait()
+        try:
+            return_code, logs = container.exec_run(
+                cmd=command,
+                user=user,
+                workdir=work_dir,
+                stdout=True,
+                stderr=True,
+                demux=True
+            )
+        except APIError as e:
+            raise ValueError(
+                'could not execute command "{}" in container "{}". Failed with the following message:\n{}'
+                .format(command, container, str(e))
+            )
 
-        stdout = self._container.logs(stdout=True, stderr=False).decode('utf-8')
-        stderr = self._container.logs(stdout=False, stderr=True).decode('utf-8')
-        stats = self._container.stats(stream=False)
+        if logs[0] is None:
+            stdout = None
+        else:
+            stdout = logs[0].decode('utf-8')
 
-        return AgentExecutionResult(stdout, stderr, stats)
+        if logs[1] is None:
+            stderr = None
+        else:
+            stderr = logs[1].decode('utf-8')
 
-    def get_file_archive(self, file_path):
+        stats = container.stats(stream=False)
+
+        return AgentExecutionResult(return_code, stdout, stderr, stats)
+
+    @staticmethod
+    def get_file_archive(container, file_path):
         """
         Retrieves the given file path as tar-archive from the internal docker container.
 
+        :param container: The container to get the archive from
+        :type container: Container
         :param file_path: A file path inside the docker container
         :type file_path: str
 
@@ -258,7 +305,7 @@ class DockerManager:
         :raise AgentError: If the given file could not be fetched
         """
         try:
-            bits, _ = self._container.get_archive(file_path)
+            bits, _ = container.get_archive(file_path)
 
             output_archive_bytes = io.BytesIO()
             for chunk in bits:
@@ -269,10 +316,3 @@ class DockerManager:
             raise AgentError(str(e))
 
         return tarfile.TarFile(fileobj=output_archive_bytes)
-
-    def remove_container(self):
-        """
-        Removes the internal container.
-        """
-        self._container.remove()
-        self._container = None

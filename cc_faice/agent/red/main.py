@@ -9,7 +9,6 @@ import os
 import tarfile
 
 import json
-import stat
 
 from argparse import ArgumentParser
 from typing import List
@@ -17,7 +16,7 @@ from enum import Enum
 from uuid import uuid4
 
 from cc_core.commons.engines import engine_to_runtime, engine_validation
-from cc_core.commons.exceptions import print_exception, exception_format, AgentError
+from cc_core.commons.exceptions import print_exception, exception_format, AgentError, JobExecutionError
 from cc_core.commons.files import load_and_read, dump_print, create_directory_tarinfo
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, InsufficientGPUError
 from cc_core.commons.red import red_validation
@@ -409,10 +408,9 @@ def run_blue_batch(blue_batch,
 
     is_mounting = define_is_mounting(blue_batch, insecure)
 
-    docker_manager.create_container(
+    container = docker_manager.create_container(
         name=container_name,
         image=docker_image,
-        command=command,
         working_directory=CONTAINER_OUTPUT_DIR,
         ram=ram,
         runtime=runtime,
@@ -422,9 +420,28 @@ def run_blue_batch(blue_batch,
     )
 
     with _create_batch_archive(blue_batch) as blue_archive:
-        docker_manager.put_archive(blue_archive)
+        docker_manager.put_archive(container, blue_archive)
 
-    agent_execution_result = docker_manager.run_container()
+    # hack to make fuse working under osx
+    if is_mounting:
+        set_osx_fuse_permissions_command = [
+            'chmod',
+            'o+rw',
+            '/dev/fuse'
+        ]
+        osx_fuse_result = docker_manager.run_command(
+            container,
+            set_osx_fuse_permissions_command,
+            user='root',
+            work_dir='/'
+        )
+        if osx_fuse_result.return_code != 0:
+            raise JobExecutionError(
+               'Failed to set fuse permissions (exitcode: {}). Failed with the following message:\n{}\n{}'
+               .format(osx_fuse_result.return_code, osx_fuse_result.get_stdout(), osx_fuse_result.get_stderr())
+            )
+
+    agent_execution_result = docker_manager.run_command(container, command, user='cc')
 
     blue_agent_result = agent_execution_result.get_agent_result_dict()
 
@@ -434,13 +451,14 @@ def run_blue_batch(blue_batch,
         # create outputs directory
         if output_mode == OutputMode.Directory:
             abs_host_outdir = os.path.abspath(host_outdir.format(batch_index=batch_index))
-            _handle_directory_outputs(abs_host_outdir, blue_agent_result['outputs'], docker_manager)
-
+            _handle_directory_outputs(abs_host_outdir, blue_agent_result['outputs'], container, docker_manager)
     else:
         state = ExecutionResultType.Failed
 
+    container.stop()
+
     if not leave_container:
-        docker_manager.remove_container()
+        container.remove()
 
     return ContainerExecutionResult(
         state,
@@ -452,15 +470,17 @@ def run_blue_batch(blue_batch,
     )
 
 
-def _handle_directory_outputs(host_outdir, outputs, docker_manager):
+def _handle_directory_outputs(host_outdir, outputs, container, docker_manager):
     """
-    Creates the host_outdir and retrieves the files given in outputs from the docker manager. The retrieved files are
+    Creates the host_outdir and retrieves the files given in outputs from the docker container. The retrieved files are
     then stored in the created host_outdir.
 
     :param host_outdir: The absolute path to the output directory of the host.
     :type host_outdir: str
     :param outputs: A dictionary mapping output_keys to file information.
     :type outputs: Dict[str, Dict]
+    :param container: The container to get the outputs from
+    :type container: Container
     :param docker_manager: The docker manager from which to retrieve the files
     :type docker_manager: DockerManager
 
@@ -482,7 +502,7 @@ def _handle_directory_outputs(host_outdir, outputs, docker_manager):
             continue
 
         try:
-            file_archive = docker_manager.get_file_archive(file_path)
+            file_archive = docker_manager.get_file_archive(container, file_path)
         except AgentError as e:
             raise AgentError(
                 'Could not retrieve output file "{}" with path "{}" from docker container. '

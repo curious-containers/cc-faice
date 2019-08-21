@@ -15,7 +15,7 @@ from typing import List
 from enum import Enum
 from uuid import uuid4
 
-from cc_core.commons.engines import engine_to_runtime, engine_validation
+from cc_core.commons.engines import engine_validation
 from cc_core.commons.exceptions import print_exception, exception_format, AgentError, JobExecutionError
 from cc_core.commons.files import load_and_read, dump_print, create_directory_tarinfo
 from cc_core.commons.gpu_info import get_gpu_requirements, match_gpus, InsufficientGPUError
@@ -154,7 +154,7 @@ def run(red_file,
 
         # validation
         red_validation(red_data, output_mode == OutputMode.Directory, container_requirement=True)
-        engine_validation(red_data, 'container', ['docker', 'nvidia-docker'], optional=False)
+        engine_validation(red_data, 'container', ['docker'], optional=False)
 
         # templates and secrets
         complete_red_templates(red_data, keyring_service, non_interactive)
@@ -167,7 +167,6 @@ def run(red_file,
         # docker settings
         docker_image = red_data['container']['settings']['image']['url']
         ram = red_data['container']['settings'].get('ram')
-        runtime = engine_to_runtime(red_data['container']['engine'])
         environment = env_vars(preserve_environment)
 
         # create docker manager
@@ -197,7 +196,6 @@ def run(red_file,
                 ram=ram,
                 gpus=gpus,
                 environment=environment,
-                runtime=runtime,
                 insecure=insecure
             )
 
@@ -230,10 +228,9 @@ def get_gpu_devices(docker_manager, gpu_ids):
     """
     gpu_devices = docker_manager.get_nvidia_docker_gpus()
 
-    gpu_ids = gpu_ids.copy()
-
     # limit gpu devices to the given gpu ids, if given
     if gpu_ids:
+        gpu_ids = gpu_ids.copy()
         # only use gpu devices, that are specified in gpu_ids
         used_gpu_devices = []
         for gpu_device in gpu_devices:
@@ -375,7 +372,6 @@ def run_blue_batch(blue_batch,
                    ram,
                    gpus,
                    environment,
-                   runtime,
                    insecure):
     """
     Executes an blue agent inside a docker container that takes the given blue batch as argument.
@@ -393,7 +389,6 @@ def run_blue_batch(blue_batch,
     :param ram: The RAM limit for the docker container, given in MB
     :param gpus: The gpus to use for this batch execution
     :param environment: The environment to use for the docker container
-    :param runtime: The docker runtime to use
     :param insecure: Allow insecure capabilities
     :return: A container result
     :rtype: ContainerExecutionResult
@@ -413,7 +408,6 @@ def run_blue_batch(blue_batch,
         image=docker_image,
         working_directory=CONTAINER_OUTPUT_DIR,
         ram=ram,
-        runtime=runtime,
         gpus=gpus,
         environment=environment,
         enable_fuse=is_mounting,

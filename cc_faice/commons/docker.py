@@ -202,8 +202,10 @@ class DockerManager:
         if ram is not None:
             mem_limit = '{}m'.format(ram)
 
+        gpu_ids = None
         if gpus:
             set_nvidia_environment_variables(environment, map(lambda gpu: gpu.device_id, gpus))
+            gpu_ids = [gpu.device_id for gpu in gpus]
 
         runtime = None
         if gpus and (NVIDIA_DOCKER_RUNTIME in self._runtimes):
@@ -220,7 +222,7 @@ class DockerManager:
             self._client,
             image,
             command='/bin/sh',
-            gpus=[gpu.device_id for gpu in gpus],
+            gpus=gpu_ids,
             available_runtimes=self._runtimes,
             name=name,
             user='1000:1000',

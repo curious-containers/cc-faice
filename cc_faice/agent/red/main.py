@@ -4,17 +4,14 @@ blue_file       in memory               /cc/blue_file.json
 blue_agent      <import...>             /cc/blue_agent.py
 outputs         ./outputs[_batch_id]    /cc/outputs (defined in red_to_blue.py)
 """
-import io
 import os
-import tarfile
-
-import json
 
 from argparse import ArgumentParser
 from typing import List
 from enum import Enum
 from uuid import uuid4
 
+from cc_core.commons.docker_utils import create_batch_archive
 from cc_core.commons.engines import engine_validation
 from cc_core.commons.exceptions import print_exception, exception_format, AgentError, JobExecutionError
 from cc_core.commons.files import load_and_read, dump_print, create_directory_tarinfo
@@ -413,7 +410,7 @@ def run_blue_batch(blue_batch,
         enable_fuse=is_mounting,
     )
 
-    with _create_batch_archive(blue_batch) as blue_archive:
+    with create_batch_archive(blue_batch) as blue_archive:
         docker_manager.put_archive(container, blue_archive)
 
     # hack to make fuse working under osx
@@ -508,48 +505,6 @@ def _handle_directory_outputs(host_outdir, outputs, container, docker_manager):
         file_archive.close()
 
 
-def _create_batch_archive(blue_data):
-    """
-    Creates a tar archive. This archive contains the blue agent, a blue file and the outputs-directory.
-    The blue file is filled with the given blue data.
-    The blue agent is imported via cc-core and the blue_agent.py file is added to the archive.
-    The outputs-directory is an empty directory, with name 'outputs'
-
-    The tar archive and the blue file are always in memory and never stored on the local filesystem.
-
-    :param blue_data: The data to put into the blue file of the returned archive
-    :type blue_data: dict
-    :return: A tar archive containing the blue agent and the given blue batch
-    :rtype: io.BytesIO or bytes
-    """
-    data_file = io.BytesIO()
-    tar_file = tarfile.open(mode='w', fileobj=data_file)
-
-    # add blue agent
-    tar_file.add(get_blue_agent_host_path(), arcname=CONTAINER_AGENT_PATH, recursive=False)
-
-    # add blue file
-    blue_batch_content = json.dumps(blue_data).encode('utf-8')
-    # see https://bugs.python.org/issue22208 for more information
-    blue_batch_tarinfo = tarfile.TarInfo(CONTAINER_BLUE_FILE_PATH)
-    blue_batch_tarinfo.size = len(blue_batch_content)
-    tar_file.addfile(blue_batch_tarinfo, io.BytesIO(blue_batch_content))
-
-    # add outputs directory
-    output_directory_tarinfo = create_directory_tarinfo(CONTAINER_OUTPUT_DIR, owner_name='cc')
-    tar_file.addfile(output_directory_tarinfo)
-
-    # add inputs_directory
-    input_directory_tarinfo = create_directory_tarinfo(CONTAINER_INPUT_DIR, owner_name='cc')
-    tar_file.addfile(input_directory_tarinfo)
-
-    # close file
-    tar_file.close()
-    data_file.seek(0)
-
-    return data_file
-
-
 def define_is_mounting(blue_batch, insecure):
     mount_connectors = _get_blue_batch_mount_keys(blue_batch)
     if mount_connectors:
@@ -574,11 +529,3 @@ def _create_blue_agent_command():
     return [PYTHON_INTERPRETER, CONTAINER_AGENT_PATH, CONTAINER_BLUE_FILE_PATH, '--debug']
 
 
-def get_blue_agent_host_path():
-    """
-    Returns the path of the blue agent in the host machine.
-
-    :return: The path to the blue agent
-    """
-    import cc_core.agent.blue.__main__ as blue_main
-    return blue_main.__file__

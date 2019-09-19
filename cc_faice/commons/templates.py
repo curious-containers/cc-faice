@@ -13,6 +13,7 @@ def complete_red_templates(red_data, keyring_service, fail_if_interactive):
     """
     Replaces templates inside the given red data. Requests the template keys of the red data from the keyring using the
     given keyring service.
+
     :param red_data: The red data to complete template keys for
     :type red_data: dict[str, Any]
     :param keyring_service: The keyring service to use for requests

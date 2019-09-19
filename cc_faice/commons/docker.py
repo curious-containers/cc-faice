@@ -10,12 +10,11 @@ from docker.models.containers import Container
 from docker.types import Ulimit
 from requests.exceptions import ConnectionError
 
-from cc_core.commons.docker_utils import create_container_with_gpus
+from cc_core.commons.docker_utils import create_container_with_gpus, detect_nvidia_docker_gpus
 from cc_core.commons.exceptions import AgentError
-from cc_core.commons.gpu_info import set_nvidia_environment_variables, GPUDevice, NVIDIA_GPU_VENDOR
+from cc_core.commons.gpu_info import set_nvidia_environment_variables, GPUDevice
 
 NOFILE_LIMIT = 4096
-GPU_QUERY_IMAGE = 'nvidia/cuda:8.0-runtime'
 
 
 def env_vars(preserve_environment):
@@ -111,51 +110,7 @@ class DockerManager:
         :return: A list of GPUDevices
         :rtype: List[GPUDevice]
         """
-        self.pull(GPU_QUERY_IMAGE)
-
-        # this creates an csv output that contains gpu indices and their total memory in mega bytes
-        command = [
-            'nvidia-smi',
-            '--query-gpu=index,memory.total',
-            '--format=csv,noheader,nounits'
-        ]
-
-        try:
-            container = create_container_with_gpus(
-                self._client,
-                GPU_QUERY_IMAGE,
-                command=command,
-                available_runtimes=self._runtimes,
-                gpus='all'
-            )  # type: Container
-            container.start()
-            container.wait()
-            stdout = container.logs(stdout=True, stderr=False, stream=False)
-            container.remove()
-        except DockerException as e:
-            raise DockerException(
-                'Could not query gpus. Make sure the nvidia-runtime or nvidia-container-toolkit is configured on '
-                'the docker host. Container failed with following message:\n{}'.format(str(e))
-            )
-
-        gpus = []
-        for gpu_line in stdout.decode('utf-8').splitlines():
-            try:
-                index_text, memory_text = gpu_line.split(sep=',')  # type: str
-
-                index = int(index_text.strip())
-                memory = int(memory_text.strip())
-
-                gpu = GPUDevice(index, memory, NVIDIA_GPU_VENDOR)
-                gpus.append(gpu)
-
-            except ValueError as e:
-                raise DockerException(
-                    'Could not parse gpu query output:\n{}\nFailed with the following message:\n{}'
-                    .format(stdout, str(e))
-                )
-
-        return gpus
+        return detect_nvidia_docker_gpus(self._client, self._runtimes)
 
     def pull(self, image, auth=None):
         self._client.images.pull(image, auth_config=auth)

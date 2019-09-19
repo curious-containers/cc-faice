@@ -2,6 +2,7 @@ import sys
 from getpass import getpass
 
 import keyring
+import keyring.backends.chainer
 from cc_core.commons.exceptions import TemplateError, ParsingError
 from cc_core.commons.parsing import split_into_parts
 from cc_core.commons.templates import TEMPLATE_SEPARATOR_START, TEMPLATE_SEPARATOR_END, get_dict_sub_key_string, \
@@ -58,6 +59,7 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
     Returns a dictionary containing template keys and values.
     To fill in the template keys, first the keyring service is requested for each key,
     afterwards the user is asked interactively.
+
     :param template_keys: A set of template keys to query the keyring or ask the user
     :type template_keys: list[TemplateKey]
     :param keyring_service: The keyring service to query
@@ -66,6 +68,7 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
     :rtype: dict
     :raise TemplateError: If not all TemplateKeys could be resolved and fail_if_interactive is set
     """
+    keyring_usable = _keyring_usable()
 
     templates = {}
     keys_that_could_not_be_fulfilled = []
@@ -75,7 +78,10 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
 
     for template_key in template_keys:
         # try keyring
-        template_value = keyring.get_password(keyring_service, template_key.key)
+        template_value = None
+        if keyring_usable:
+            template_value = keyring.get_password(keyring_service, template_key.key)
+
         if template_value is not None:
             templates[template_key.key] = template_value
         else:  # ask user
@@ -97,7 +103,7 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
         raise TemplateError('Could not resolve the following variables: "{}".'
                             .format(keys_that_could_not_be_fulfilled))
 
-    if interactive_keys_present:
+    if interactive_keys_present and keyring_usable:
         answer = input('Add variables to keyring "{}" [y/N]: '.format(keyring_service))
         if (answer.lower() == 'y') or (answer.lower() == 'yes'):
             for new_key, new_value in new_interactive_templates:
@@ -105,6 +111,14 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
             print('Added variables to keyring.')
 
     return templates
+
+
+def _keyring_usable():
+    """
+    :return: whether keyring is usable or not. Checks whether the chainer backend has backends configured
+    :rtype: bool
+    """
+    return bool(keyring.backends.chainer.ChainerBackend.backends)
 
 
 def _resolve_template_string(template_string, templates, key_string):

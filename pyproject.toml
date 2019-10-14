@@ -10,10 +10,8 @@ description = "FAICE (Fair Collaboration and Experiments) is part of the Curious
 
 [tool.poetry.dependencies]
 python = "^3.5"
-docker = "^4.0"
 keyring = "^19.0"
-jsonschema = "^3.0"
-cc-core = "~8.0"
+#cc-core = "~8.0"
 
 [tool.poetry.dev-dependencies]
 

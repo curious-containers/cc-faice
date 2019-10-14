@@ -4,8 +4,7 @@ from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 
 from cc_core.commons.exceptions import AgentError, print_exception, exception_format, RedSpecificationError
-from cc_core.commons.files import dump_print, load_and_read, wrapped_print
-from cc_core.commons.schemas.cwl import cwl_schema
+from cc_core.commons.files import dump_print, load_and_read
 
 
 DESCRIPTION = 'Read cli section of a REDFILE and write it to stdout in the specified format.'
@@ -63,19 +62,6 @@ def run(red_file, fmt, **_):
         return result
 
     cli = red_data['cli']
-
-    try:
-        validate(cli, cwl_schema)
-    except ValidationError as e:
-        where = '/'.join([str(s) for s in e.absolute_path]) if e.absolute_path else '/'
-        err = RedSpecificationError(
-            'Cli description does not comply with jsonschema:\n\tkey in cwl section: {}\n\treason: {}'
-            .format(where, e.message)
-        )
-        print_exception(err)
-        result['debugInfo'] = exception_format()
-        result['state'] = 'failed'
-        return result
 
     dump_print(cli, fmt)
 

@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from copy import deepcopy
+from pprint import pprint
 
 import requests
 
@@ -143,6 +144,11 @@ def run(red_file, non_interactive, fmt, insecure, keyring_service, **_):
             ),
             json=red_data
         )
+        if 400 <= r.status_code < 500:
+            try:
+                pprint(r.json())
+            except ValueError:  # if the body does not contain json, we ignore it
+                pass
         r.raise_for_status()
 
         dump_print(r.json(), fmt)

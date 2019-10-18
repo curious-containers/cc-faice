@@ -3,6 +3,8 @@ from getpass import getpass
 
 import keyring
 import keyring.backends.chainer
+from keyring.errors import KeyringLocked
+
 from cc_core.commons.exceptions import TemplateError, ParsingError
 from cc_core.commons.parsing import split_into_parts
 from cc_core.commons.templates import TEMPLATE_SEPARATOR_START, TEMPLATE_SEPARATOR_END, get_dict_sub_key_string, \
@@ -81,7 +83,10 @@ def _get_templates(template_keys, keyring_service, fail_if_interactive):
         # try keyring
         template_value = None
         if keyring_usable:
-            template_value = keyring.get_password(keyring_service, template_key.key)
+            try:
+                template_value = keyring.get_password(keyring_service, template_key.key)
+            except KeyringLocked:
+                keyring_usable = False
 
         if template_value is not None:
             templates[template_key.key] = template_value

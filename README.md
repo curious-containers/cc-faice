@@ -1,6 +1,6 @@
 # CC-FAICE
 
-FAICE (Fair Collaboration and Experiments) is part of the Curious Containers project and enables researchers to perform and distribute reproducible data-driven experiments defined in RED or CWL format.
+This repository is **deprecated**. The code has been moved to https://github.com/curious-containers/curious-containers/.
 
 For more information please refer to the Curious Containers [documentation](https://www.curious-containers.cc/).
 
